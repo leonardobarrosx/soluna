@@ -9,3 +9,6 @@ assets/**/private/
 
 # Player accounts and characters stay on the server that created them.
 data/accounts/
+
+# Maps that use private art.
+data/maps/private/

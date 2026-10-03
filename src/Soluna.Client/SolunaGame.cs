@@ -541,10 +541,10 @@ internal sealed class SolunaGame : Game
     {
         _batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, transformMatrix: _camera.Transform);
 
-        _renderer.DrawLayers(_batch, map, _camera, 0, MapData.FirstFringeLayer);
+        _renderer.DrawLayers(_batch, map, _camera, 0, map.FringeFrom);
         foreach (var character in _others.Values.Append(local).OrderBy(c => c.Position.Y))
             _renderer.DrawCharacter(_batch, character);
-        _renderer.DrawLayers(_batch, map, _camera, MapData.FirstFringeLayer, MapData.LayerCount);
+        _renderer.DrawLayers(_batch, map, _camera, map.FringeFrom, map.Layers.Length);
         _editor.DrawWorld(_batch, map, _camera);
 
         _batch.End();

@@ -3,17 +3,28 @@ using T = Soluna.Shared.PlaceholderTiles;
 
 namespace Soluna.Server;
 
-/// <summary>Loads maps from data/maps/{id}.json, creating the starter map on first run.</summary>
+/// <summary>
+/// Loads maps by id. data/maps/private/{id}.json wins over data/maps/{id}.json: private maps use
+/// art that cannot be committed (data/maps/private is ignored by git), so a server with that art
+/// plays it while a fresh clone still gets the committed map. A map saves back to where it came from.
+/// </summary>
 internal sealed class MapStore
 {
     public const int StartMapId = 1;
 
+    /// <summary>Pipoya's sample map, imported as the start map when the pack is in assets/tilesets/private.</summary>
+    private static readonly string PipoyaSample = Path.Combine(
+        DataPaths.Assets, "tilesets", "private", "Pipoya RPG Tileset 32x32", "Pipoya RPG Tileset 32x32", "SampleMap", "samplemap.tmx");
+
     private readonly string _folder;
+    private readonly string _privateFolder;
     private readonly Dictionary<int, MapData> _maps = [];
+    private readonly Dictionary<int, string> _paths = [];
 
     public MapStore(string folder)
     {
         _folder = folder;
+        _privateFolder = Path.Combine(folder, "private");
         Directory.CreateDirectory(folder);
     }
 
@@ -21,32 +32,58 @@ internal sealed class MapStore
     {
         if (_maps.TryGetValue(id, out var cached)) return cached;
 
-        var path = PathFor(id);
+        var privatePath = Path.Combine(_privateFolder, $"{id}.json");
+        var publicPath = Path.Combine(_folder, $"{id}.json");
+
+        if (!File.Exists(privatePath) && id == StartMapId && File.Exists(PipoyaSample))
+        {
+            var imported = TmxImporter.Import(PipoyaSample, id, "Vila de Soluna", Path.Combine(DataPaths.Assets, "tilesets"));
+            // The road just east of the river's main bridge.
+            imported.SpawnX = 24;
+            imported.SpawnY = 30;
+            Store(imported, privatePath);
+            Log.Info($"Imported Pipoya's sample map as map {id} into {privatePath}.");
+        }
+
         MapData map;
+        var path = File.Exists(privatePath) ? privatePath : publicPath;
         if (File.Exists(path))
         {
             map = MapData.FromBytes(File.ReadAllBytes(path));
-            Log.Info($"Loaded map {id} '{map.Name}' ({map.Width}x{map.Height}).");
+            Log.Info($"Loaded map {id} '{map.Name}' ({map.Width}x{map.Height}) from {Path.GetRelativePath(DataPaths.Root, path)}.");
         }
         else
         {
             // Real art when the LPC tiles are present, painted placeholders otherwise.
             var lpc = File.Exists(Path.Combine(DataPaths.Assets, "tilesets", LpcStarterMap.ProbeFile));
             map = lpc ? LpcStarterMap.Build(id) : StarterMap.Build(id);
-            Save(map);
             Log.Info($"Created starter map at {path}.");
         }
-        _maps[id] = map;
+        Store(map, path);
         return map;
     }
 
-    public void Save(MapData map)
+    public void Save(MapData map) =>
+        Store(map, _paths.GetValueOrDefault(map.Id) ?? Path.Combine(_folder, $"{map.Id}.json"));
+
+    /// <summary>Imports a Tiled map and saves it, as private if any of its tilesets is.</summary>
+    public MapData Import(string tmxPath, int id, string name)
     {
-        _maps[map.Id] = map;
-        File.WriteAllBytes(PathFor(map.Id), map.ToBytes());
+        var map = TmxImporter.Import(tmxPath, id, name, Path.Combine(DataPaths.Assets, "tilesets"));
+        var isPrivate = map.Tilesets.Any(t => t.StartsWith("private/", StringComparison.OrdinalIgnoreCase));
+        var path = Path.Combine(isPrivate ? _privateFolder : _folder, $"{id}.json");
+        Store(map, path);
+        Log.Info($"Saved map {id} to {Path.GetRelativePath(DataPaths.Root, path)}.");
+        return map;
     }
 
-    private string PathFor(int id) => Path.Combine(_folder, $"{id}.json");
+    private void Store(MapData map, string path)
+    {
+        _maps[map.Id] = map;
+        _paths[map.Id] = path;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, map.ToBytes());
+    }
 }
 
 /// <summary>A small walled glade painted with the placeholder tileset.</summary>

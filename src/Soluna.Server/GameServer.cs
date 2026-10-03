@@ -60,7 +60,6 @@ internal sealed class Session(NetPeer peer)
 /// </summary>
 internal sealed class GameServer
 {
-    private const int SpawnX = 19, SpawnY = 14;
     private const long AutosaveMs = 60_000;
 
     // Each step costs a bit less than a walk so jitter never rejects an honest client,
@@ -488,23 +487,25 @@ internal sealed class GameServer
         var cells = map.Width * map.Height;
         return map.Width is > 0 and <= 256
             && map.Height is > 0 and <= 256
-            && map.Layers.Length == MapData.LayerCount
+            && map.Layers.Length is > 0 and <= MapData.MaxLayers
+            && map.FringeFrom >= 0 && map.FringeFrom <= map.Layers.Length
             && map.Layers.All(l => l.Length == cells)
             && map.Attributes.Length == cells;
     }
 
-    /// <summary>The walkable tile nearest the spawn point that nobody is standing on.</summary>
+    /// <summary>The walkable tile nearest the map's spawn point that nobody is standing on.</summary>
     private static (int x, int y) FindSpawn(MapData map, List<Player> others)
     {
+        var (spawnX, spawnY) = map.Spawn;
         for (var radius = 0; radius < 8; radius++)
         for (var dy = -radius; dy <= radius; dy++)
         for (var dx = -radius; dx <= radius; dx++)
         {
             if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
-            var (x, y) = (SpawnX + dx, SpawnY + dy);
+            var (x, y) = (spawnX + dx, spawnY + dy);
             if (map.IsWalkable(x, y) && !others.Any(p => p.X == x && p.Y == y)) return (x, y);
         }
-        return (SpawnX, SpawnY);
+        return (spawnX, spawnY);
     }
 
     private static void SendMap(NetPeer peer, MapData map)

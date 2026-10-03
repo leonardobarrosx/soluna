@@ -29,7 +29,7 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
     private Point? _hover;
 
     public bool Active { get; private set; }
-    public MapLayer Layer { get; private set; } = MapLayer.Ground;
+    public int Layer { get; private set; }
     public bool AttributeMode { get; private set; }
     public bool Dirty { get; set; }
 
@@ -60,14 +60,15 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
     {
         if (!Active) return false;
 
-        for (var i = 0; i < MapData.LayerCount; i++)
+        for (var i = 0; i < Math.Min(9, map.Layers.Length); i++)
         {
             if (input.Pressed(Keys.D1 + i))
             {
-                Layer = (MapLayer)i;
+                Layer = i;
                 AttributeMode = false;
             }
         }
+        Layer = Math.Clamp(Layer, 0, map.Layers.Length - 1);
         if (input.Pressed(Keys.B)) AttributeMode = !AttributeMode;
         if (input.Pressed(Keys.Tab) && _palette.Count > 0)
         {
@@ -158,7 +159,7 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
             var pos = new Vector2(x * S, y * S);
             batch.Draw(pixel, pos, null, grid, 0, Vector2.Zero, new Vector2(S, line), SpriteEffects.None, 0);
             batch.Draw(pixel, pos, null, grid, 0, Vector2.Zero, new Vector2(line, S), SpriteEffects.None, 0);
-            if (map.GetAttribute(x, y) == TileAttribute.Blocked && (AttributeMode || Layer == MapLayer.Ground))
+            if (map.GetAttribute(x, y) == TileAttribute.Blocked && (AttributeMode || Layer == 0))
                 batch.Draw(pixel, new Rectangle(x * S, y * S, S, S), Theme.Danger * (AttributeMode ? 0.35f : 0.15f));
         }
 
@@ -186,7 +187,8 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
         var y = panel.Y + 10;
         Ui.Text(batch, fonts.Title, "Editor de mapa", new Vector2(x, y), Theme.Luna);
         y += 30;
-        var mode = AttributeMode ? "Atributo: Bloqueado" : $"Camada: {Layer}";
+        var above = Layer >= map.FringeFrom ? " (acima)" : "";
+        var mode = AttributeMode ? "Atributo: Bloqueado" : $"Camada {Layer + 1}/{map.Layers.Length}: {map.LayerName(Layer)}{above}";
         Ui.Text(batch, fonts.Body, mode, new Vector2(x, y), AttributeMode ? Theme.Danger : Theme.Sol);
         y += 20;
         var setName = _palette.Count > 0 ? _palette[_tileset] : "-";
@@ -215,7 +217,7 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
         var help = Dirty ? "Alterações não salvas · Ctrl+S salva" : "Mapa salvo";
         var fy = panel.Bottom - FooterHeight + 8;
         Ui.Text(batch, fonts.Small, help, new Vector2(x, fy), Dirty ? Theme.Sol : Theme.System);
-        Ui.Text(batch, fonts.Small, "1-5 camada · B bloqueio · Tab/Shift+Tab tileset", new Vector2(x, fy + 18), Theme.TextDim);
+        Ui.Text(batch, fonts.Small, "1-9 camada · B bloqueio · Tab/Shift+Tab tileset", new Vector2(x, fy + 18), Theme.TextDim);
         Ui.Text(batch, fonts.Small, "Esq pinta · Dir apaga · Roda rola", new Vector2(x, fy + 36), Theme.TextDim);
     }
 

@@ -30,7 +30,9 @@ Soluna follows the shape of [Crystalshire](https://github.com/RobinPerris/Crysta
 - LPC tiles with autotiling for terrain edges and corners; the starter map is a glade with paths, a pond and a pine forest
 - Night mode on by default: the world sits under a dark tint with a soft light around your character (F3 toggles it)
 - Chat, join and leave messages, player names over heads
-- In-game map editor (F1): tile palette, five layers, blocked tiles, Ctrl+S saves to the server and every other player on the map receives the change
+- In-game map editor (F1): tile palette, the map's layers (1 to 9), blocked tiles, Ctrl+S saves to the server and every other player on the map receives the change
+- Tiled import: `dotnet run --project src/Soluna.Server -- import map.tmx <id> [name]` turns a Tiled map (CSV or base64, embedded or external tilesets under `assets/tilesets`) into a Soluna map, keeping every layer, moving layers named like `*_up`, `roof` or `tree` (or with an `above` property) over the characters, and working out collision from `collision` layers or, failing that, from water, buildings and trees
+- With the free [Pipoya RPG Tileset](https://pipoya.itch.io/pipoya-rpg-tileset-32x32) extracted into `assets/tilesets/private/`, the server imports Pipoya's sample village as the start map on first run (into `data/maps/private`, which git ignores, since the pack may not be redistributed)
 - Falls back to placeholder art painted in code if the asset folders are missing
 
 ## Run it
@@ -74,7 +76,7 @@ Characters are the layers of IndigoFenix's BoundWorlds Character Maker (CC-BY 4.
 src/Soluna.Shared   protocol, map format, constants
 src/Soluna.Server   console server, accounts (data/accounts, not committed), maps (data/maps)
 src/Soluna.Client   MonoGame client, renderer, UI, editor
-data/maps           maps, edited in game
+data/maps           maps, edited in game (data/maps/private: maps using private art, not committed)
 data/items.json     items and the layers they wear
 assets              character layers, tiles and credits
 tools               asset download script
@@ -82,7 +84,7 @@ tools               asset download script
 
 ## Next
 
-Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, map warps and several maps, chibi-style tiles to match the characters, NPCs and combat, then the card duel system that the VB6 version started.
+Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, map warps and several maps, animated tiles, NPCs and combat, then the card duel system that the VB6 version started.
 
 ## Credits
 

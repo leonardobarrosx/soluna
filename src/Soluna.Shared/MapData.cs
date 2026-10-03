@@ -3,8 +3,9 @@ using System.Text.Json;
 namespace Soluna.Shared;
 
 /// <summary>
-/// Layers in draw order. Ground, Mask and Mask2 are drawn under characters,
-/// Fringe and Fringe2 over them, as in Crystalshire.
+/// The five layers of a Crystalshire-style map, in draw order: Ground, Mask and Mask2 under
+/// characters, Fringe and Fringe2 over them. Imported maps may have more layers; see
+/// <see cref="MapData.FringeFrom"/>.
 /// </summary>
 public enum MapLayer
 {
@@ -23,8 +24,8 @@ public enum TileAttribute : byte
 
 public sealed class MapData
 {
-    public const int LayerCount = 5;
-    public const int FirstFringeLayer = (int)MapLayer.Fringe;
+    public const int DefaultLayerCount = 5;
+    public const int MaxLayers = 16;
 
     public int Id { get; set; }
     public string Name { get; set; } = "";
@@ -37,13 +38,30 @@ public sealed class MapData
     /// <summary>One array per layer, Width * Height cells, each a <see cref="TileRef"/> value.</summary>
     public int[][] Layers { get; set; } = [];
 
+    /// <summary>Layers from this index up are drawn over characters.</summary>
+    public int FringeFrom { get; set; } = (int)MapLayer.Fringe;
+
+    /// <summary>Optional names shown in the editor, one per layer.</summary>
+    public string[]? LayerNames { get; set; }
+
+    /// <summary>Where new players appear; -1 means the middle of the map.</summary>
+    public int SpawnX { get; set; } = -1;
+    public int SpawnY { get; set; } = -1;
+
+    public (int x, int y) Spawn => SpawnX >= 0 && SpawnY >= 0 ? (SpawnX, SpawnY) : (Width / 2, Height / 2);
+
+    public string LayerName(int layer) =>
+        LayerNames != null && layer < LayerNames.Length ? LayerNames[layer]
+        : layer < DefaultLayerCount ? ((MapLayer)layer).ToString()
+        : $"Layer {layer + 1}";
+
     public byte[] Attributes { get; set; } = [];
 
-    public static MapData CreateEmpty(int id, string name, int width, int height)
+    public static MapData CreateEmpty(int id, string name, int width, int height, int layers = DefaultLayerCount)
     {
         var map = new MapData { Id = id, Name = name, Width = width, Height = height };
-        map.Layers = new int[LayerCount][];
-        for (var i = 0; i < LayerCount; i++)
+        map.Layers = new int[layers][];
+        for (var i = 0; i < layers; i++)
         {
             map.Layers[i] = new int[width * height];
             Array.Fill(map.Layers[i], TileRef.Empty);
@@ -59,6 +77,10 @@ public sealed class MapData
     public int GetTile(MapLayer layer, int x, int y) => Layers[(int)layer][Index(x, y)];
 
     public void SetTile(MapLayer layer, int x, int y, int tile) => Layers[(int)layer][Index(x, y)] = tile;
+
+    public int GetTile(int layer, int x, int y) => Layers[layer][Index(x, y)];
+
+    public void SetTile(int layer, int x, int y, int tile) => Layers[layer][Index(x, y)] = tile;
 
     public TileAttribute GetAttribute(int x, int y) => (TileAttribute)Attributes[Index(x, y)];
 
