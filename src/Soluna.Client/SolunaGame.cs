@@ -10,14 +10,24 @@ using Soluna.Shared;
 
 namespace Soluna.Client;
 
-/// <param name="Screenshot">Debug: save a PNG of the screen to this path a few seconds after entering, then quit.</param>
+/// <param name="User">Log in with this account on start (and create it if it does not exist yet).</param>
+/// <param name="Password">Password for <paramref name="User"/>.</param>
+/// <param name="Play">After logging in, enter the world with the first character, creating a random one if the slot is empty.</param>
+/// <param name="Screenshot">Debug: save a PNG of the screen to this path a few seconds in, then quit.</param>
 /// <param name="Walk">Debug: wander around on its own, for testing with several clients.</param>
 /// <param name="Editor">Open the map editor as soon as the map arrives.</param>
-/// <param name="SkipCreation">Skip character creation with a random look (implied by Walk).</param>
 /// <param name="Inventory">Open the equipment panel on entry.</param>
 internal sealed record ClientOptions(
-    string Host, int Port, string Name, string? Screenshot = null, bool Walk = false, bool Editor = false,
-    bool SkipCreation = false, bool Inventory = false);
+    string Host, int Port, string Name, string? User = null, string? Password = null, bool Play = false,
+    string? Screenshot = null, bool Walk = false, bool Editor = false, bool Inventory = false);
+
+internal enum Stage
+{
+    Login,
+    Select,
+    Create,
+    World,
+}
 
 internal sealed class SolunaGame : Game
 {
@@ -34,7 +44,9 @@ internal sealed class SolunaGame : Game
     private readonly Input _input = new();
     private readonly ChatBox _chat = new();
     private readonly Dictionary<int, Character> _others = [];
-    private readonly ItemCatalog _items = ItemCatalog.Load();
+
+    // Filled by the server after login; nothing about items is read from disk on the client.
+    private readonly ItemCatalog _items = ItemCatalog.Empty();
 
     private SpriteBatch _batch = null!;
     private Textures _textures = null!;
@@ -42,27 +54,28 @@ internal sealed class SolunaGame : Game
     private MapRenderer _renderer = null!;
     private MapEditor _editor = null!;
     private Sprites _sprites = null!;
-    private CreationScreen? _creation;
     private InventoryPanel _inventory = null!;
-    private Appearance? _look;
-    private string _name;
+    private LoginScreen _login = null!;
+    private SelectScreen _select = null!;
+    private CreationScreen? _creation;
     private Texture2D _lightMask = null!;
 
+    private Stage _stage = Stage.Login;
     private MapData? _map;
     private Character? _local;
+    private byte _access;
     private bool _connecting;
+    private bool _loggingOut;
+    private bool _autoRegisterTried;
     private float _retryIn;
-    private string _status = "";
     private bool _night = true;
-    private float _inWorldSeconds;
-    private float _runSeconds;
+    private float _stageSeconds;
     private Direction? _wanderDir;
     private float _wanderSeconds;
 
     public SolunaGame(ClientOptions options)
     {
         _options = options;
-        _name = options.Name;
         _graphics = new GraphicsDeviceManager(this)
         {
             PreferredBackBufferWidth = 1280,
@@ -74,8 +87,12 @@ internal sealed class SolunaGame : Game
         Window.Title = Constants.GameName;
         Window.TextInput += (_, e) =>
         {
-            if (_creation != null) _creation.OnTextInput(e.Character);
-            else _chat.OnTextInput(e.Character);
+            switch (_stage)
+            {
+                case Stage.Login: _login.OnTextInput(e.Character); break;
+                case Stage.Create: _creation?.OnTextInput(e.Character); break;
+                case Stage.World: _chat.OnTextInput(e.Character); break;
+            }
         };
         Window.ClientSizeChanged += (_, _) =>
         {
@@ -100,67 +117,95 @@ internal sealed class SolunaGame : Game
         _renderer = new MapRenderer(_textures, _sprites);
         _editor = new MapEditor(_textures, _renderer);
         _inventory = new InventoryPanel(_items, _sprites);
+        _login = new LoginScreen(_options.User ?? "");
+        _select = new SelectScreen(_sprites);
         _lightMask = PlaceholderArt.LightMask(GraphicsDevice, MaskInner, MaskOuter);
-
-        if (_options.SkipCreation || _options.Walk)
-        {
-            _look = Appearance.Random(Random.Shared);
-            Connect();
-        }
-        else
-        {
-            _creation = new CreationScreen(_sprites, _items, _options.Name);
-        }
+        Connect();
     }
 
     protected override void UnloadContent() => _connection.Stop();
 
     private Point Screen => new(GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height);
 
+    private void GoTo(Stage stage)
+    {
+        _stage = stage;
+        _stageSeconds = 0;
+    }
+
     // ---- Networking ----
 
     private void Connect()
     {
         _connecting = true;
-        _status = $"Conectando a {_options.Host}:{_options.Port}...";
         _connection.Connect(_options.Host, _options.Port);
     }
 
     private void OnConnected()
     {
         _connecting = false;
-        _status = "Entrando...";
-        var login = PacketIO.Begin(PacketType.Login);
-        login.Put(_name);
-        _look!.Write(login);
-        _connection.Send(login);
+        _login.Online = true;
+        if (_options.User != null && _options.Password != null) Send(PacketType.Login, w => { w.Put(_options.User); w.Put(_options.Password); });
     }
 
     private void OnDisconnected(string reason)
     {
-        var wasPlaying = _local != null;
+        var wasIn = _stage != Stage.Login;
         _connecting = false;
         _map = null;
         _local = null;
         _others.Clear();
-        _retryIn = RetrySeconds;
-        _status = wasPlaying ? $"Conexão perdida ({reason}). Tentando de novo..." : "Servidor indisponível. Tentando de novo...";
+        _creation = null;
+        _retryIn = _loggingOut ? 0 : RetrySeconds;
+        _login.Online = false;
+        _login.Busy = false;
+        _login.Message = _loggingOut ? "" : wasIn ? $"Conexão perdida ({reason})." : "";
+        _login.MessageIsError = true;
+        _loggingOut = false;
+        GoTo(Stage.Login);
+    }
+
+    private void Send(PacketType type, Action<NetDataWriter>? write = null)
+    {
+        var w = PacketIO.Begin(type);
+        write?.Invoke(w);
+        _connection.Send(w);
     }
 
     private void OnPacket(PacketType type, NetDataReader r)
     {
         switch (type)
         {
+            case PacketType.Refused:
+                OnRefused(r.GetString());
+                break;
+
+            case PacketType.ItemCatalog:
+                _items.Replace(r.GetString());
+                _sprites.Clear();
+                break;
+
+            case PacketType.CharacterList:
+                OnCharacterList(r);
+                break;
+
             case PacketType.LoginOk:
             {
                 var me = r.GetPlayerInfo();
+                _access = r.GetByte();
                 _local = new Character(me.Id, me.Name, me.Look, me.Equipment);
                 _local.Place(me.X, me.Y, me.Dir);
+                _inventory.Open = _options.Inventory;
+                Window.Title = $"{Constants.GameName} · {me.Name}";
+                _chat.Add("", _access > 0 ? "Você é administrador: F1 abre o editor, /item <id> cria itens." : "Bem-vindo a Soluna.");
+                GoTo(Stage.World);
+                break;
+            }
+            case PacketType.InventoryUpdate:
+            {
                 _inventory.Inventory.Clear();
                 var count = r.GetInt();
                 for (var i = 0; i < count; i++) _inventory.Inventory.Add(r.GetInt());
-                _inventory.Open = _options.Inventory;
-                Window.Title = $"{Constants.GameName} · {me.Name}";
                 break;
             }
             case PacketType.MapLoad:
@@ -213,28 +258,55 @@ internal sealed class SolunaGame : Game
         }
     }
 
+    private void OnRefused(string message)
+    {
+        switch (_stage)
+        {
+            case Stage.Login:
+                // --play with an account that does not exist yet: create it once, then carry on.
+                if (_options.Play && _options.User != null && _options.Password != null && !_autoRegisterTried)
+                {
+                    _autoRegisterTried = true;
+                    Send(PacketType.Register, w => { w.Put(_options.User); w.Put(_options.Password); });
+                    return;
+                }
+                _login.Busy = false;
+                _login.Message = message;
+                _login.MessageIsError = true;
+                break;
+            case Stage.Create when _creation != null:
+                _creation.Message = message;
+                break;
+            default:
+                _select.Message = message;
+                break;
+        }
+    }
+
+    private void OnCharacterList(NetDataReader r)
+    {
+        for (var i = 0; i < Constants.MaxCharacters; i++)
+            _select.Slots[i] = r.GetBool() ? new CharacterSummary(r.GetString(), Appearance.Read(r), r.GetEquipment()) : null;
+        _select.Message = "";
+        _login.Busy = false;
+        _creation = null;
+        GoTo(Stage.Select);
+
+        if (!_options.Play && !_options.Walk) return;
+        if (_select.Slots[0] == null)
+            Send(PacketType.CreateCharacter, w => { w.Put((byte)0); w.Put(_options.Name); Appearance.Random(Random.Shared).Write(w); });
+        else
+            Send(PacketType.PlayCharacter, w => w.Put((byte)0));
+    }
+
     // ---- Update ----
 
     protected override void Update(GameTime gameTime)
     {
         var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        _runSeconds += dt;
+        _stageSeconds += dt;
         _input.Update(IsActive && _options.Screenshot == null);
         _sprites.Trim();
-
-        if (_creation != null)
-        {
-            if (_creation.Update(_input, Screen, dt))
-            {
-                _look = _creation.Look;
-                _name = _creation.Name;
-                _creation = null;
-                Connect();
-            }
-            base.Update(gameTime);
-            return;
-        }
-
         _connection.Poll();
         _camera.Viewport = Screen;
 
@@ -244,25 +316,83 @@ internal sealed class SolunaGame : Game
             if (_retryIn <= 0) Connect();
         }
 
-        HandleHotkeys();
-
-        if (_map != null && _local != null)
+        switch (_stage)
         {
-            _inWorldSeconds += dt;
-            UpdateLocal(dt * 1000);
-            foreach (var other in _others.Values) other.Update(dt * 1000);
-
-            if (_editor.Update(_input, _map, _camera, Screen) && _editor.Dirty) SaveMap();
-            if (_inventory.Update(_input, Screen) is { } clicked)
-            {
-                var w = PacketIO.Begin(PacketType.EquipToggle);
-                w.Put(clicked);
-                _connection.Send(w);
-            }
-            _camera.Follow(_local.Position + new Vector2(Constants.TileSize / 2f), new Vector2(_map.Width, _map.Height) * Constants.TileSize);
+            case Stage.Login: UpdateLogin(dt); break;
+            case Stage.Select: UpdateSelect(dt); break;
+            case Stage.Create: UpdateCreate(dt); break;
+            case Stage.World: UpdateWorld(dt); break;
         }
 
         base.Update(gameTime);
+    }
+
+    private void UpdateLogin(float dt)
+    {
+        switch (_login.Update(_input, Screen, dt))
+        {
+            case LoginAction.Login:
+                Send(PacketType.Login, w => { w.Put(_login.User); w.Put(_login.Password); });
+                break;
+            case LoginAction.Register:
+                Send(PacketType.Register, w => { w.Put(_login.User); w.Put(_login.Password); });
+                break;
+        }
+    }
+
+    private void UpdateSelect(float dt)
+    {
+        var action = _select.Update(_input, Screen, dt);
+        var slot = (byte)_select.Slot;
+        switch (action)
+        {
+            case SelectAction.Play:
+                Send(PacketType.PlayCharacter, w => w.Put(slot));
+                break;
+            case SelectAction.Create:
+                _creation = new CreationScreen(_sprites, _items, "");
+                GoTo(Stage.Create);
+                break;
+            case SelectAction.Delete:
+                Send(PacketType.DeleteCharacter, w => w.Put(slot));
+                break;
+            case SelectAction.Logout:
+                _loggingOut = true;
+                _connection.Disconnect();
+                break;
+        }
+    }
+
+    private void UpdateCreate(float dt)
+    {
+        if (_creation == null) return;
+        switch (_creation.Update(_input, Screen, dt))
+        {
+            case CreationAction.Confirm:
+                var slot = (byte)_select.Slot;
+                var name = _creation.Name;
+                var look = _creation.Look;
+                _creation.Message = "";
+                Send(PacketType.CreateCharacter, w => { w.Put(slot); w.Put(name); look.Write(w); });
+                break;
+            case CreationAction.Cancel:
+                _creation = null;
+                GoTo(Stage.Select);
+                break;
+        }
+    }
+
+    private void UpdateWorld(float dt)
+    {
+        HandleHotkeys();
+        if (_map == null || _local == null) return;
+
+        UpdateLocal(dt * 1000);
+        foreach (var other in _others.Values) other.Update(dt * 1000);
+
+        if (_editor.Update(_input, _map, _camera, Screen) && _editor.Dirty) SaveMap();
+        if (_inventory.Update(_input, Screen) is { } clicked) Send(PacketType.EquipToggle, w => w.Put(clicked));
+        _camera.Follow(_local.Position + new Vector2(Constants.TileSize / 2f), new Vector2(_map.Width, _map.Height) * Constants.TileSize);
     }
 
     private void HandleHotkeys()
@@ -270,24 +400,19 @@ internal sealed class SolunaGame : Game
         if (_chat.Typing)
         {
             if (_input.Pressed(Keys.Escape)) _chat.Cancel();
-            if (_input.Pressed(Keys.Enter))
-            {
-                var text = _chat.Submit();
-                if (text != null && _connection.IsConnected)
-                {
-                    var w = PacketIO.Begin(PacketType.ChatSend);
-                    w.Put(text);
-                    _connection.Send(w);
-                }
-            }
+            if (_input.Pressed(Keys.Enter) && _chat.Submit() is { } text) Send(PacketType.ChatSend, w => w.Put(text));
             return;
         }
 
         if (_input.Pressed(Keys.Enter)) _chat.Open();
         if (_input.Pressed(Keys.F1) && _map != null)
         {
-            _editor.Toggle(_map);
-            _inventory.Open = false;
+            if (_access == 0 && !_editor.Active) _chat.Add("", "Só administradores podem editar mapas.");
+            else
+            {
+                _editor.Toggle(_map);
+                _inventory.Open = false;
+            }
         }
         if (_input.Pressed(Keys.I) && _local != null)
         {
@@ -320,11 +445,8 @@ internal sealed class SolunaGame : Game
             return;
         }
 
-        var w = PacketIO.Begin(PacketType.MoveRequest);
-        w.Put((byte)dir);
-        w.Put(local.TileX);
-        w.Put(local.TileY);
-        _connection.Send(w);
+        var (fromX, fromY) = (local.TileX, local.TileY);
+        Send(PacketType.MoveRequest, w => { w.Put((byte)dir); w.Put(fromX); w.Put(fromY); });
 
         local.StartMove(dir, tx, ty);
         // Carry the time past the end of the last step so continuous walking stays smooth.
@@ -355,9 +477,7 @@ internal sealed class SolunaGame : Game
 
     private void SaveMap()
     {
-        var w = PacketIO.Begin(PacketType.MapSave);
-        w.PutBlob(_map!.ToBytes());
-        _connection.Send(w);
+        Send(PacketType.MapSave, w => w.PutBlob(_map!.ToBytes()));
         _editor.Dirty = false;
     }
 
@@ -367,30 +487,35 @@ internal sealed class SolunaGame : Game
     {
         GraphicsDevice.Clear(Theme.Background);
 
-        if (_map != null && _local != null) DrawWorld(_map, _local);
+        var inWorld = _stage == Stage.World && _map != null && _local != null;
+        if (inWorld) DrawWorld(_map!, _local!);
 
         _batch.Begin(samplerState: SamplerState.PointClamp);
-        if (_creation != null)
+        switch (_stage)
         {
-            _creation.Draw(_batch, _textures.Pixel, _fonts, Screen);
-        }
-        else if (_map != null && _local != null)
-        {
-            DrawNames();
-            DrawStatusBar(_map);
-            _chat.Draw(_batch, _textures.Pixel, _fonts, Screen);
-            _editor.DrawPanel(_batch, _fonts, _map, Screen);
-            _inventory.Draw(_batch, _textures.Pixel, _fonts, _local, Screen);
-        }
-        else
-        {
-            DrawConnecting();
+            case Stage.Login:
+                _login.Draw(_batch, _textures.Pixel, _fonts, Screen);
+                break;
+            case Stage.Select:
+                _select.Draw(_batch, _textures.Pixel, _fonts, Screen);
+                break;
+            case Stage.Create:
+                _creation?.Draw(_batch, _textures.Pixel, _fonts, Screen);
+                break;
+            case Stage.World when inWorld:
+                DrawNames();
+                DrawStatusBar(_map!);
+                _chat.Draw(_batch, _textures.Pixel, _fonts, Screen);
+                _editor.DrawPanel(_batch, _fonts, _map!, Screen);
+                _inventory.Draw(_batch, _textures.Pixel, _fonts, _local!, Screen);
+                break;
         }
         _batch.End();
 
         base.Draw(gameTime);
 
-        var shotReady = _creation != null ? _runSeconds > 3 : _inWorldSeconds > 4;
+        // Automated runs photograph the world once they are in it, or wherever they stopped otherwise.
+        var shotReady = _stage == Stage.World ? _stageSeconds > 4 : _stageSeconds > 3 && !_options.Play && !_options.Walk;
         if (_options.Screenshot != null && shotReady) SaveScreenshot(_options.Screenshot);
     }
 
@@ -464,21 +589,12 @@ internal sealed class SolunaGame : Game
         Ui.Text(_batch, _fonts.Title, Constants.GameName, new Vector2(bar.X + 12, bar.Y + 2), Theme.Luna);
         Ui.Text(_batch, _fonts.Body, info, new Vector2(bar.X + 28 + _fonts.Title.MeasureString(Constants.GameName).X, bar.Y + 7), Theme.TextDim);
 
-        if (_editor.Active) return;
-        if (_inventory.Open) return;
-        const string hint = "Enter chat  ·  I equipamento  ·  F1 editor  ·  F3 noite  ·  +/- zoom";
+        if (_editor.Active || _inventory.Open) return;
+        var hint = _access > 0
+            ? "Enter chat  ·  I equipamento  ·  F1 editor  ·  F3 noite  ·  +/- zoom"
+            : "Enter chat  ·  I equipamento  ·  F3 noite  ·  +/- zoom";
         var size = _fonts.Small.MeasureString(hint);
         var screen = Screen;
         Ui.Text(_batch, _fonts.Small, hint, new Vector2(screen.X - size.X - 14, screen.Y - size.Y - 12), Theme.TextDim);
-    }
-
-    private void DrawConnecting()
-    {
-        var screen = Screen;
-        var title = _fonts.Title.MeasureString(Constants.GameName);
-        var status = _fonts.Body.MeasureString(_status);
-        var center = new Vector2(screen.X / 2f, screen.Y / 2f);
-        Ui.Text(_batch, _fonts.Title, Constants.GameName, center - new Vector2(title.X / 2, title.Y + 6), Theme.Luna);
-        Ui.Text(_batch, _fonts.Body, _status, center - new Vector2(status.X / 2, -6), Theme.TextDim);
     }
 }

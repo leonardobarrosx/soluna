@@ -52,7 +52,12 @@ internal sealed class CharacterSprites
     /// <summary>Drops cached sheets once there are too many. Call outside Draw, never while a batch is open.</summary>
     public void Trim()
     {
-        if (_sheets.Count <= MaxCached) return;
+        if (_sheets.Count > MaxCached) Clear();
+    }
+
+    /// <summary>Forgets every composed sheet, for when the item catalog changes. Same rule as <see cref="Trim"/>.</summary>
+    public void Clear()
+    {
         foreach (var sheet in _sheets.Values) sheet.Dispose();
         _sheets.Clear();
     }

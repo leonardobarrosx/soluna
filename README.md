@@ -1,8 +1,12 @@
 # Soluna
 
-A 2D top-down MMORPG engine in C#. Client, server, character creation, paper-doll equipment and an in-game map editor, dark UI.
+A 2D top-down MMORPG engine in C#. Client, server, accounts with saved characters, paper-doll equipment and an in-game map editor, dark UI.
 
 Soluna follows the shape of [Crystalshire](https://github.com/RobinPerris/Crystalshire), Robin Perris's VB6 engine from the Eclipse ORPG family: a 32x32 tile grid, five map layers, tile-by-tile movement and editors that live inside the game. It is a rewrite, not a port, and none of the VB6 code is carried over.
+
+![Login](docs/login.png)
+
+![Character select](docs/select.png)
 
 ![Character creation](docs/creation.png)
 
@@ -16,9 +20,13 @@ Soluna follows the shape of [Crystalshire](https://github.com/RobinPerris/Crysta
 
 - Authoritative UDP server (LiteNetLib). Clients move straight away for responsiveness; the server checks each step against the map and a movement budget, and snaps a client back when it disagrees
 - MonoGame client: layered tile renderer, characters sorted by depth, smooth tile-to-tile walking, camera that follows and clamps to the map, zoom
+- Accounts: register and log in, passwords stored only as salted PBKDF2-SHA256 hashes, one session per account
+- Up to three characters per account, Crystalshire style, on a select screen; create, play or delete
+- Characters are saved on logout and every minute: position, look, equipment and inventory survive a server restart
 - Character creation: name, body, skin tone, hair style, hair colour and eyes, with a live walking preview
 - Paper-doll characters: body, head, hair and every equipped item are separate LPC layers, recoloured by palette and stacked at runtime, so changing equipment changes how the character looks to everyone on the map
-- Equipment panel (I): click an item to wear it or take it off; items are plain JSON in `data/items.json`
+- Equipment panel (I): click an item to wear it or take it off. Items are plain JSON in `data/items.json`, sent by the server at login; new characters get the ones marked `starter`
+- Access levels: the first account created on a server is admin and can edit maps (F1) and use `/item <id>`; everyone has `/online` and `/itens`
 - LPC tiles with autotiling for terrain edges and corners; the starter map is a glade with paths, a pond and a pine forest
 - Night mode on by default: the world sits under a dark tint with a soft light around your character (F3 toggles it)
 - Chat, join and leave messages, player names over heads
@@ -37,7 +45,9 @@ dotnet run --project src/Soluna.Server
 dotnet run --project src/Soluna.Client -- --name Leo
 ```
 
-Open a second client to see two players. Client options: `--host`, `--port`, `--name`, plus a few for testing: `--walk` (random look, wanders on its own), `--skip-creation`, `--editor` and `--inventory` (open those panels on entry) and `--screenshot file.png` (save a frame after a few seconds, then quit).
+Create an account on the login screen; the first one on a fresh server becomes admin. Open a second client to see two players.
+
+Client options: `--host`, `--port`, `--user` and `--password` (log in on start), `--play` (also enter with the first character, creating the account and a random character if needed). For testing: `--walk --name X` (a local test account that wanders on its own), `--editor` and `--inventory` (open those panels on entry) and `--screenshot file.png` (save a frame after a few seconds, then quit).
 
 ## Controls
 
@@ -62,7 +72,7 @@ Characters and tiles come from the Liberated Pixel Cup projects (CC-BY-SA 3.0 / 
 
 ```
 src/Soluna.Shared   protocol, map format, constants
-src/Soluna.Server   console server, map storage (data/maps/*.json)
+src/Soluna.Server   console server, accounts (data/accounts, not committed), maps (data/maps)
 src/Soluna.Client   MonoGame client, renderer, UI, editor
 data/maps           maps, edited in game
 data/items.json     items and the layers they wear
@@ -72,7 +82,7 @@ tools               asset download script
 
 ## Next
 
-Accounts and saved characters, items that drop and trade instead of a starter wardrobe, an autotile brush in the editor, map warps and several maps, NPCs and combat (the LPC slash and spellcast animations are ready to fetch), then the card duel system that the VB6 version started.
+Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, map warps and several maps, NPCs and combat (the LPC slash and spellcast animations are ready to fetch), then the card duel system that the VB6 version started.
 
 ## Credits
 

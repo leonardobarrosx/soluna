@@ -22,6 +22,9 @@ public sealed class ItemDef
     public EquipSlot Slot { get; init; }
     public string Sheet { get; init; } = "";
     public string[] Colors { get; init; } = [];
+
+    /// <summary>Given to every new character.</summary>
+    public bool Starter { get; init; }
 }
 
 /// <summary>Item ids worn in each <see cref="EquipSlot"/>; 0 means the slot is empty.</summary>
@@ -58,30 +61,45 @@ public sealed class ItemCatalog
         Converters = { new JsonStringEnumConverter() },
     };
 
-    private readonly Dictionary<int, ItemDef> _items;
+    private Dictionary<int, ItemDef> _items = [];
 
-    private ItemCatalog(IEnumerable<ItemDef> items) => _items = items.ToDictionary(i => i.Id);
-
+    /// <summary>The server's copy, from data/items.json.</summary>
     public static ItemCatalog Load() => Load(Path.Combine(DataPaths.Data, "items.json"));
 
     public static ItemCatalog Load(string path)
     {
-        var items = File.Exists(path)
-            ? JsonSerializer.Deserialize<List<ItemDef>>(File.ReadAllText(path), JsonOptions) ?? []
-            : [];
-        return new ItemCatalog(items);
+        var catalog = new ItemCatalog();
+        if (File.Exists(path)) catalog.Replace(File.ReadAllText(path));
+        return catalog;
+    }
+
+    /// <summary>The client starts empty and fills in when the server sends the catalog.</summary>
+    public static ItemCatalog Empty() => new();
+
+    /// <summary>The JSON the catalog was read from, as sent to clients.</summary>
+    public string Json { get; private set; } = "[]";
+
+    public void Replace(string json)
+    {
+        var items = JsonSerializer.Deserialize<List<ItemDef>>(json, JsonOptions) ?? [];
+        _items = items.ToDictionary(i => i.Id);
+        Json = json;
     }
 
     public IEnumerable<ItemDef> All => _items.Values.OrderBy(i => i.Slot).ThenBy(i => i.Id);
 
     public ItemDef? Get(int id) => _items.GetValueOrDefault(id);
 
-    /// <summary>What a new character starts wearing: the first item of each slot, skipping hats.</summary>
+    public IEnumerable<int> StarterItems => All.Where(i => i.Starter).Select(i => i.Id);
+
+    /// <summary>What a new character starts wearing: the first starter item of each slot.</summary>
     public Equipment StarterEquipment()
     {
         var equipment = new Equipment();
-        foreach (var slot in new[] { EquipSlot.Torso, EquipSlot.Legs, EquipSlot.Feet })
-            equipment[slot] = All.FirstOrDefault(i => i.Slot == slot)?.Id ?? 0;
+        foreach (var item in All.Where(i => i.Starter))
+        {
+            if (equipment[item.Slot] == 0) equipment[item.Slot] = item.Id;
+        }
         return equipment;
     }
 }

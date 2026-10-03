@@ -6,7 +6,8 @@ var port = args.Length > 0 && int.TryParse(args[0], out var p) ? p : Constants.D
 var maps = new MapStore(Path.Combine(DataPaths.Data, "maps"));
 var items = ItemCatalog.Load();
 Log.Info($"Loaded {items.All.Count()} items.");
-var server = new GameServer(maps, items);
+var accounts = new AccountStore(Path.Combine(DataPaths.Data, "accounts"));
+var server = new GameServer(maps, items, accounts);
 
 var running = true;
 Console.CancelKeyPress += (_, e) =>

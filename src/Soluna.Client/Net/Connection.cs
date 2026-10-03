@@ -46,5 +46,7 @@ internal sealed class Connection
 
     public void Send(NetDataWriter writer) => _server?.Send(writer, DeliveryMethod.ReliableOrdered);
 
+    public void Disconnect() => _net.DisconnectAll();
+
     public void Stop() => _net.Stop();
 }

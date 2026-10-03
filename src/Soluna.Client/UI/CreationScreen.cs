@@ -8,6 +8,13 @@ using Soluna.Shared;
 
 namespace Soluna.Client.UI;
 
+internal enum CreationAction
+{
+    None,
+    Confirm,
+    Cancel,
+}
+
 /// <summary>
 /// Character creation: a name plus body, skin, hair and eyes, with a live walking preview
 /// wearing the starter clothes.
@@ -36,6 +43,9 @@ internal sealed class CreationScreen
     }
 
     public string Name => _name.ToString().Trim();
+
+    /// <summary>Why the server refused the last attempt, if it did.</summary>
+    public string Message { get; set; } = "";
 
     public Appearance Look => new((byte)_values[1], (byte)_values[2], (byte)_values[3], (byte)_values[4], (byte)_values[5]);
 
@@ -86,10 +96,10 @@ internal sealed class CreationScreen
         if (!char.IsControl(c) && _name.Length < Constants.MaxNameLength) _name.Append(c);
     }
 
-    /// <summary>Returns true when the player confirms the character.</summary>
-    public bool Update(Input input, Point screen, float dt)
+    public CreationAction Update(Input input, Point screen, float dt)
     {
         _time += dt;
+        if (input.Pressed(Keys.Escape)) return CreationAction.Cancel;
 
         if (input.Pressed(Keys.Down) || input.Pressed(Keys.Tab)) _row = (_row + 1) % Labels.Length;
         if (input.Pressed(Keys.Up)) _row = (_row - 1 + Labels.Length) % Labels.Length;
@@ -110,10 +120,10 @@ internal sealed class CreationScreen
                 if (RightArrow(rect).Contains(mouse)) Step(row, 1);
             }
             if (RandomButton(layout).Contains(mouse)) Randomize();
-            if (EnterButton(layout).Contains(mouse)) return Name.Length > 0;
+            if (EnterButton(layout).Contains(mouse) && Name.Length > 0) return CreationAction.Confirm;
         }
 
-        return input.Pressed(Keys.Enter) && Name.Length > 0;
+        return input.Pressed(Keys.Enter) && Name.Length > 0 ? CreationAction.Confirm : CreationAction.None;
     }
 
     public void Draw(SpriteBatch batch, Texture2D pixel, Fonts fonts, Point screen)
@@ -157,9 +167,15 @@ internal sealed class CreationScreen
         var ready = Name.Length > 0;
         batch.Draw(pixel, enter, ready ? Theme.Luna * 0.25f : Theme.PanelRaised);
         Ui.Outline(batch, pixel, enter, ready ? Theme.Luna : Theme.Border);
-        Centered(batch, fonts, enter, "Entrar no mundo (Enter)", ready ? Theme.Text : Theme.TextDim);
+        Centered(batch, fonts, enter, "Criar personagem (Enter)", ready ? Theme.Text : Theme.TextDim);
 
-        const string help = "Setas escolhem e mudam  ·  clique nas setas  ·  o nome usa o teclado";
+        if (Message.Length > 0)
+        {
+            var messageSize = fonts.Body.MeasureString(Message);
+            Ui.Text(batch, fonts.Body, Message, new Vector2(layout.X + 28 + 130 - messageSize.X / 2, layout.Bottom - 50), Theme.Danger);
+        }
+
+        const string help = "Setas escolhem e mudam  ·  R sorteia  ·  Esc volta";
         var helpSize = fonts.Small.MeasureString(help);
         Ui.Text(batch, fonts.Small, help, new Vector2(layout.Center.X - helpSize.X / 2, layout.Bottom + 12), Theme.TextDim);
     }

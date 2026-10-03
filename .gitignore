@@ -6,3 +6,6 @@ obj/
 
 # Art you are allowed to use but not to redistribute.
 assets/**/private/
+
+# Player accounts and characters stay on the server that created them.
+data/accounts/

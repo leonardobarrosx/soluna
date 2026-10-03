@@ -10,4 +10,6 @@ internal sealed class Sprites(CharacterSprites lpc, Textures textures)
         lpc.Available ? lpc.Get(look, equipment) : textures.Character(look.GetHashCode() & 0xFF);
 
     public void Trim() => lpc.Trim();
+
+    public void Clear() => lpc.Clear();
 }

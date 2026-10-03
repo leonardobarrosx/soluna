@@ -14,6 +14,13 @@ public static class Constants
 
     public const int MaxNameLength = 16;
     public const int MaxChatLength = 120;
+
+    // Accounts, Crystalshire style: one login, a few characters.
+    public const int MaxCharacters = 3;
+    public const int MinUserLength = 3;
+    public const int MaxUserLength = 20;
+    public const int MinPasswordLength = 6;
+    public const int MaxPasswordLength = 64;
 }
 
 public enum Direction : byte
