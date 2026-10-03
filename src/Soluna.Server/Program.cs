@@ -10,11 +10,12 @@ if (args is ["import", var tmx, var idText, ..] && int.TryParse(idText, out var 
     return;
 }
 
-var port = args.Length > 0 && int.TryParse(args[0], out var p) ? p : Constants.DefaultPort;
+var port = args.FirstOrDefault(a => int.TryParse(a, out _)) is { } portText ? int.Parse(portText) : Constants.DefaultPort;
 var items = ItemCatalog.Load();
 Log.Info($"Loaded {items.All.Count()} items.");
 var accounts = new AccountStore(Path.Combine(DataPaths.Data, "accounts"));
-var server = new GameServer(maps, items, accounts);
+// --all-items: new characters get the whole wardrobe (development).
+var server = new GameServer(maps, items, accounts) { StarterGetsAllItems = args.Contains("--all-items") };
 
 var running = true;
 Console.CancelKeyPress += (_, e) =>

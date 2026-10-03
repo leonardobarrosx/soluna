@@ -11,6 +11,8 @@ public enum EquipSlot : byte
     Feet = 3,
     Neck = 4,
     Arms = 5,
+    Weapon = 6,
+    Back = 7,
 }
 
 /// <summary>
@@ -32,7 +34,7 @@ public sealed class ItemDef
 /// <summary>Item ids worn in each <see cref="EquipSlot"/>; 0 means the slot is empty.</summary>
 public sealed class Equipment
 {
-    public const int SlotCount = 6;
+    public const int SlotCount = 8;
 
     private readonly int[] _items = new int[SlotCount];
 
@@ -65,8 +67,15 @@ public sealed class ItemCatalog
 
     private Dictionary<int, ItemDef> _items = [];
 
-    /// <summary>The server's copy, from data/items.json.</summary>
-    public static ItemCatalog Load() => Load(Path.Combine(DataPaths.Data, "items.json"));
+    /// <summary>
+    /// The server's copy: data/private/items.json when a private character art set brought its own
+    /// items, otherwise data/items.json.
+    /// </summary>
+    public static ItemCatalog Load()
+    {
+        var privateItems = Path.Combine(DataPaths.Data, "private", "items.json");
+        return Load(File.Exists(privateItems) ? privateItems : Path.Combine(DataPaths.Data, "items.json"));
+    }
 
     public static ItemCatalog Load(string path)
     {

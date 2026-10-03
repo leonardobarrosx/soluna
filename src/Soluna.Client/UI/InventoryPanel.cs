@@ -17,12 +17,14 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
     [
         (EquipSlot.Head, "Cabeça"), (EquipSlot.Torso, "Torso"), (EquipSlot.Legs, "Pernas"),
         (EquipSlot.Feet, "Pés"), (EquipSlot.Neck, "Pescoço"), (EquipSlot.Arms, "Braços"),
+        (EquipSlot.Weapon, "Arma"), (EquipSlot.Back, "Costas"),
     ];
 
     /// <summary>Only the slots some item can go in, so the panel never lists a slot that is always empty.</summary>
     private IEnumerable<(EquipSlot slot, string label)> Slots => AllSlots.Where(s => items.All.Any(i => i.Slot == s.slot));
 
     private int _hover = -1;
+    private int _scroll;
 
     public bool Open { get; set; }
 
@@ -37,7 +39,9 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
         if (!Open) return null;
 
         var mouse = input.Mouse.ToPoint();
-        for (var i = 0; i < Inventory.Count; i++)
+        if (PanelRect(screen).Contains(mouse))
+            _scroll = Math.Clamp(_scroll - input.Wheel * 3, 0, Math.Max(0, Inventory.Count - VisibleRows(screen)));
+        for (var i = _scroll; i < Inventory.Count; i++)
         {
             if (!ItemRect(screen, i).Contains(mouse)) continue;
             _hover = i;
@@ -74,8 +78,8 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
             y += 30;
         }
 
-        Ui.Text(batch, fonts.Small, "Inventário  ·  clique para vestir ou tirar", new Vector2(x, panel.Y + ListTop - 22), Theme.TextDim);
-        for (var i = 0; i < Inventory.Count; i++)
+        Ui.Text(batch, fonts.Small, $"Inventário ({Inventory.Count})  ·  clique veste ou tira  ·  roda rola", new Vector2(x, panel.Y + ListTop - 22), Theme.TextDim);
+        for (var i = _scroll; i < Inventory.Count; i++)
         {
             var rect = ItemRect(screen, i);
             if (rect.Bottom > panel.Bottom - 8) break;
@@ -91,8 +95,11 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
         }
     }
 
+    private int VisibleRows(Point screen) => Math.Max(1, (PanelRect(screen).Height - ListTop - 8) / RowHeight);
+
     private Rectangle ItemRect(Point screen, int index)
     {
+        index -= _scroll;
         var panel = PanelRect(screen);
         return new Rectangle(panel.X + 8, panel.Y + ListTop + index * RowHeight, panel.Width - 16, RowHeight - 2);
     }

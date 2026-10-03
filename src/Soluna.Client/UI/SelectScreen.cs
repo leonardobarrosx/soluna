@@ -102,9 +102,9 @@ internal sealed class SelectScreen(Sprites sprites)
             batch.Draw(sheet, new Vector2(card.Center.X - size.X / 2, card.Y + 30), frame, Color.White, 0, Vector2.Zero, scale, SpriteEffects.None, 0);
 
             Centered(batch, fonts.Title, slot.Name, new Vector2(card.Center.X, card.Y + 236), Theme.Sol);
-            var body = CharacterOptions.Bodies[slot.Look.Body].label;
-            var hair = CharacterOptions.HairStyles[slot.Look.Hair].label;
-            Centered(batch, fonts.Small, $"{body}  ·  {hair}", new Vector2(card.Center.X, card.Y + 262), Theme.TextDim);
+            var options = CharacterOptions.Current;
+            var body = options.Bodies.Length > 0 ? options.Bodies[slot.Look.Body % options.Bodies.Length].Label : "";
+            Centered(batch, fonts.Small, $"{body}  ·  {slot.Look.RaceChoice.Label}", new Vector2(card.Center.X, card.Y + 262), Theme.TextDim);
 
             var delete = DeleteRect(card);
             var confirming = _confirmDelete == i;

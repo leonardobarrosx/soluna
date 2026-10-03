@@ -16,20 +16,24 @@ internal enum CreationAction
 }
 
 /// <summary>
-/// Character creation: a name plus body, skin, hair and eyes, with a live walking preview
-/// wearing the starter clothes.
+/// Character creation: a name plus the choices the active art set offers (body, race, skin,
+/// hair, hair colour, beard, eyes), with a live walking preview wearing the starter clothes.
+/// Rows with a single choice are left out.
 /// </summary>
 internal sealed class CreationScreen
 {
-    private const int RowHeight = 44;
+    private const int RowHeight = 40;
+    private const int RowGap = 5;
     private const int NameRow = 0;
 
-    private static readonly string[] Labels = ["Nome", "Corpo", "Pele", "Cabelo", "Cor do cabelo", "Olhos"];
+    // Appearance fields, in Appearance's constructor order.
+    private const int Body = 0, Skin = 1, Hair = 2, HairColor = 3, Eyes = 4, Race = 5, Beard = 6;
 
     private readonly Sprites _sprites;
     private readonly Equipment _preview;
     private readonly StringBuilder _name;
-    private readonly int[] _values = new int[Labels.Length];
+    private readonly int[] _values = new int[7];
+    private readonly List<(string label, int field, Choice[] choices)> _rows;
     private readonly Random _rng = new();
     private int _row;
     private float _time;
@@ -39,6 +43,19 @@ internal sealed class CreationScreen
         _sprites = sprites;
         _preview = items.StarterEquipment();
         _name = new StringBuilder(name.Length > Constants.MaxNameLength ? name[..Constants.MaxNameLength] : name);
+
+        var o = CharacterOptions.Current;
+        _rows = new List<(string, int, Choice[])>
+        {
+            ("Nome", -1, []),
+            ("Corpo", Body, o.Bodies),
+            ("Raça", Race, o.Races),
+            ("Pele", Skin, o.Skins),
+            ("Cabelo", Hair, o.Hair),
+            ("Cor do cabelo", HairColor, o.HairColors),
+            ("Barba", Beard, o.Beards),
+            ("Olhos", Eyes, o.Eyes),
+        }.Where(r => r.Item2 < 0 || r.Item3.Length > 1).ToList();
         Randomize();
     }
 
@@ -47,42 +64,31 @@ internal sealed class CreationScreen
     /// <summary>Why the server refused the last attempt, if it did.</summary>
     public string Message { get; set; } = "";
 
-    public Appearance Look => new((byte)_values[1], (byte)_values[2], (byte)_values[3], (byte)_values[4], (byte)_values[5]);
+    public Appearance Look => new(
+        (byte)_values[Body], (byte)_values[Skin], (byte)_values[Hair], (byte)_values[HairColor],
+        (byte)_values[Eyes], (byte)_values[Race], (byte)_values[Beard]);
 
-    private static int Count(int row) => row switch
+    private string ValueLabel(int row)
     {
-        1 => CharacterOptions.Bodies.Length,
-        2 => CharacterOptions.Skins.Length,
-        3 => CharacterOptions.HairStyles.Length,
-        4 => CharacterOptions.HairColors.Length,
-        5 => CharacterOptions.EyeColors.Length,
-        _ => 0,
-    };
+        var (_, field, choices) = _rows[row];
+        return choices.Length > 0 ? choices[_values[field] % choices.Length].Label : "";
+    }
 
-    private string ValueLabel(int row) => row switch
-    {
-        1 => CharacterOptions.Bodies[_values[1]].label,
-        2 => CharacterOptions.Skins[_values[2]].label,
-        3 => CharacterOptions.HairStyles[_values[3]].label,
-        4 => CharacterOptions.HairColors[_values[4]].label,
-        5 => CharacterOptions.EyeColors[_values[5]].label,
-        _ => "",
-    };
-
+    /// <summary>A random natural look; race and beard stay as they are so R does not keep adding cat ears.</summary>
     private void Randomize()
     {
         var look = Appearance.Random(_rng);
-        _values[1] = look.Body;
-        _values[2] = look.Skin;
-        _values[3] = look.Hair;
-        _values[4] = look.HairColor;
-        _values[5] = look.Eyes;
+        _values[Body] = look.Body;
+        _values[Skin] = look.Skin;
+        _values[Hair] = look.Hair;
+        _values[HairColor] = look.HairColor;
+        _values[Eyes] = look.Eyes;
     }
 
     private void Step(int row, int delta)
     {
-        var count = Count(row);
-        if (count > 0) _values[row] = (_values[row] + delta + count) % count;
+        var (_, field, choices) = _rows[row];
+        if (choices.Length > 0) _values[field] = (_values[field] + delta + choices.Length) % choices.Length;
     }
 
     public void OnTextInput(char c)
@@ -101,8 +107,8 @@ internal sealed class CreationScreen
         _time += dt;
         if (input.Pressed(Keys.Escape)) return CreationAction.Cancel;
 
-        if (input.Pressed(Keys.Down) || input.Pressed(Keys.Tab)) _row = (_row + 1) % Labels.Length;
-        if (input.Pressed(Keys.Up)) _row = (_row - 1 + Labels.Length) % Labels.Length;
+        if (input.Pressed(Keys.Down) || input.Pressed(Keys.Tab)) _row = (_row + 1) % _rows.Count;
+        if (input.Pressed(Keys.Up)) _row = (_row - 1 + _rows.Count) % _rows.Count;
         if (input.Pressed(Keys.Left)) Step(_row, -1);
         if (input.Pressed(Keys.Right)) Step(_row, 1);
         if (_row != NameRow && input.Pressed(Keys.R)) Randomize();
@@ -111,7 +117,7 @@ internal sealed class CreationScreen
         var mouse = input.Mouse.ToPoint();
         if (input.LeftPressed)
         {
-            for (var row = 0; row < Labels.Length; row++)
+            for (var row = 0; row < _rows.Count; row++)
             {
                 var rect = RowRect(layout, row);
                 if (!rect.Contains(mouse)) continue;
@@ -136,24 +142,24 @@ internal sealed class CreationScreen
 
         DrawPreview(batch, pixel, fonts, new Rectangle(layout.X + 28, layout.Y + 90, 260, 300));
 
-        for (var row = 0; row < Labels.Length; row++)
+        for (var row = 0; row < _rows.Count; row++)
         {
             var rect = RowRect(layout, row);
             var selected = row == _row;
             batch.Draw(pixel, rect, selected ? Theme.PanelRaised : Theme.Background * 0.6f);
             Ui.Outline(batch, pixel, rect, selected ? Theme.Luna : Theme.Border);
-            Ui.Text(batch, fonts.Small, Labels[row], new Vector2(rect.X + 12, rect.Y + 4), Theme.TextDim);
+            Ui.Text(batch, fonts.Small, _rows[row].label, new Vector2(rect.X + 12, rect.Y + 3), Theme.TextDim);
 
             if (row == NameRow)
             {
                 var caret = selected && _time % 1 < 0.5f ? "|" : "";
-                Ui.Text(batch, fonts.Body, $"{_name}{caret}", new Vector2(rect.X + 12, rect.Y + 20), Theme.Text);
+                Ui.Text(batch, fonts.Body, $"{_name}{caret}", new Vector2(rect.X + 12, rect.Y + 17), Theme.Text);
                 continue;
             }
 
             var value = ValueLabel(row);
             var size = fonts.Body.MeasureString(value);
-            Ui.Text(batch, fonts.Body, value, new Vector2(rect.Center.X - size.X / 2, rect.Y + 20), Theme.Text);
+            Ui.Text(batch, fonts.Body, value, new Vector2(rect.Center.X - size.X / 2, rect.Y + 17), Theme.Text);
             Arrow(batch, fonts, LeftArrow(rect), "<", selected);
             Arrow(batch, fonts, RightArrow(rect), ">", selected);
         }
@@ -212,18 +218,20 @@ internal sealed class CreationScreen
         Ui.Text(batch, fonts.Body, text, new Vector2(rect.Center.X - size.X / 2, rect.Center.Y - size.Y / 2), color);
     }
 
-    private static Rectangle Layout(Point screen)
+    /// <summary>Tall enough for the rows this art set needs, and never shorter than the preview.</summary>
+    private Rectangle Layout(Point screen)
     {
-        const int w = 720, h = 470;
-        return new Rectangle((screen.X - w) / 2, (screen.Y - h) / 2 - 10, w, h);
+        const int w = 720;
+        var h = Math.Max(470, 90 + _rows.Count * (RowHeight + RowGap) + 80);
+        return new Rectangle((screen.X - w) / 2, Math.Max(8, (screen.Y - h) / 2 - 10), w, h);
     }
 
     private static Rectangle RowRect(Rectangle layout, int row) =>
-        new(layout.X + 316, layout.Y + 90 + row * (RowHeight + 6), layout.Width - 344, RowHeight);
+        new(layout.X + 316, layout.Y + 90 + row * (RowHeight + RowGap), layout.Width - 344, RowHeight);
 
-    private static Rectangle LeftArrow(Rectangle row) => new(row.X + row.Width / 2 - 130, row.Y + 16, 28, 26);
+    private static Rectangle LeftArrow(Rectangle row) => new(row.X + row.Width / 2 - 130, row.Y + 13, 28, 24);
 
-    private static Rectangle RightArrow(Rectangle row) => new(row.X + row.Width / 2 + 102, row.Y + 16, 28, 26);
+    private static Rectangle RightArrow(Rectangle row) => new(row.X + row.Width / 2 + 102, row.Y + 13, 28, 24);
 
     private static Rectangle RandomButton(Rectangle layout) => new(layout.X + 316, layout.Bottom - 60, 150, 38);
 

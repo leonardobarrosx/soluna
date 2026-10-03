@@ -6,9 +6,10 @@ using Soluna.Shared;
 namespace Soluna.Client.Graphics;
 
 /// <summary>
-/// Builds chibi character sheets paper-doll style: body, eyes, hair and every equipped item
-/// are separate layers (assets/characters/chibi), each painted in its colour and stacked by
-/// z order. The result is one 3x4 RPG Maker sheet per look, cached until the look changes.
+/// Builds character sheets paper-doll style from the active art set (<see cref="CharacterArt"/>):
+/// body, race parts, eyes, hair, beard and every equipped item are separate layers, some painted
+/// in a chosen colour, stacked by z order. The result is one 3x4 RPG Maker sheet per look,
+/// cached until the look changes.
 /// </summary>
 internal sealed class CharacterSprites
 {
@@ -20,7 +21,7 @@ internal sealed class CharacterSprites
 
     private readonly GraphicsDevice _device;
     private readonly ItemCatalog _items;
-    private readonly string _folder = Path.Combine(DataPaths.Assets, "characters", "chibi");
+    private readonly string _folder = CharacterArt.Folder;
     private readonly Catalog? _catalog;
     private readonly Dictionary<string, Layer> _layers = [];
     private readonly Dictionary<string, Texture2D> _sheets = [];
@@ -34,7 +35,7 @@ internal sealed class CharacterSprites
             _catalog = JsonSerializer.Deserialize<Catalog>(File.ReadAllText(path), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     }
 
-    /// <summary>False when assets/characters/chibi is missing; callers fall back to placeholder art.</summary>
+    /// <summary>False when no character art is installed; callers fall back to placeholder art.</summary>
     public bool Available => _catalog != null;
 
     public Texture2D Get(Appearance look, Equipment equipment)
@@ -63,14 +64,44 @@ internal sealed class CharacterSprites
     /// <summary>Layers for a look, each with the colour to paint it (null keeps the drawn colours).</summary>
     private IEnumerable<(string sheet, string? color)> Parts(Appearance look, Equipment equipment)
     {
-        yield return ($"body_{look.BodyId}", look.SkinId);
+        var options = CharacterOptions.Current;
+        var skin = look.SkinId;
+        // Skins are either colours to paint one body with, or ids of pre-coloured bodies.
+        var paintedSkin = skin.StartsWith('#');
+        string Fill(string template) => template.Replace("{body}", look.BodyId).Replace("{skin}", skin);
+
+        yield return (Fill(options.Body), paintedSkin ? skin : null);
+        foreach (var part in look.RaceChoice.Parts ?? []) yield return (Fill(part), null);
         yield return (look.EyesId, null);
-        yield return (look.HairId, look.HairColorId);
+
+        // Under a hat, use the flattened version of the hair when the art set has one.
+        var hat = equipment[EquipSlot.Head] != 0 && _catalog!.Sheets.ContainsKey(look.HairId + "_hat");
+        yield return (hat ? look.HairId + "_hat" : look.HairId, look.HairColorId);
+        if (look.BeardId.Length > 0) yield return (look.BeardId, look.HairColorId);
 
         foreach (var id in equipment.Items)
         {
             if (_items.Get(id) is { } item) yield return (item.Sheet, item.Colors.FirstOrDefault());
         }
+
+        foreach (var (slotName, sheet) in options.Defaults)
+        {
+            if (Enum.TryParse<EquipSlot>(slotName, out var slot) && equipment[slot] == 0) yield return (sheet, null);
+        }
+    }
+
+    /// <summary>
+    /// The sheet to draw for a part: the version for this body ("<id>_m" / "<id>_f"), the shared one,
+    /// or, for a piece drawn only for the other body, that one rather than nothing.
+    /// </summary>
+    private string? Resolve(string sheetId, string body)
+    {
+        var sheets = _catalog!.Sheets;
+        if (sheets.ContainsKey($"{sheetId}_{body}")) return $"{sheetId}_{body}";
+        if (sheets.ContainsKey(sheetId)) return sheetId;
+        return CharacterOptions.Current.Bodies
+            .Select(b => $"{sheetId}_{b.Id}")
+            .FirstOrDefault(sheets.ContainsKey);
     }
 
     private Texture2D Compose(Appearance look, Equipment equipment)
@@ -84,9 +115,11 @@ internal sealed class CharacterSprites
         foreach (var (sheetId, color) in Parts(look, equipment))
         {
             // Body-specific pieces exist as "<id>_m" / "<id>_f"; everything else fits both bodies.
-            var id = catalog.Sheets.ContainsKey($"{sheetId}_{look.BodyId}") ? $"{sheetId}_{look.BodyId}" : sheetId;
-            if (catalog.Sheets.TryGetValue(id, out var def) && Load(def.File) is { } layer)
-                layers.Add((def.Z, layer, color));
+            if (Resolve(sheetId, look.BodyId) is not { } id || !catalog.Sheets.TryGetValue(id, out var def)) continue;
+            foreach (var (file, z) in def.AllLayers)
+            {
+                if (Load(file) is { } layer) layers.Add((z, layer, color));
+            }
         }
 
         // Stable sort keeps the order of Parts() for layers that share a z.
@@ -187,7 +220,18 @@ internal sealed class CharacterSprites
         public Dictionary<string, SheetDef> Sheets { get; init; } = [];
     }
 
+    /// <summary>A sheet is one layer (file and z), or several, such as hair drawn in front of and behind the body.</summary>
     private sealed class SheetDef
+    {
+        public string File { get; init; } = "";
+        public int Z { get; init; }
+        public LayerDef[] Layers { get; init; } = [];
+
+        public IEnumerable<(string file, int z)> AllLayers =>
+            Layers.Length > 0 ? Layers.Select(l => (l.File, l.Z)) : [(File, Z)];
+    }
+
+    private sealed class LayerDef
     {
         public string File { get; init; } = "";
         public int Z { get; init; }

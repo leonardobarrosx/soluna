@@ -1,0 +1,152 @@
+{
+ "body": "body_{body}",
+ "bodies": [
+  {
+   "id": "m",
+   "label": "Masculino"
+  },
+  {
+   "id": "f",
+   "label": "Feminino"
+  }
+ ],
+ "skins": [
+  {
+   "id": "#f6d2b4",
+   "label": "Clara"
+  },
+  {
+   "id": "#eab793",
+   "label": "Pêssego"
+  },
+  {
+   "id": "#d39a6f",
+   "label": "Dourada"
+  },
+  {
+   "id": "#b57a52",
+   "label": "Morena clara"
+  },
+  {
+   "id": "#94603d",
+   "label": "Morena"
+  },
+  {
+   "id": "#6e432a",
+   "label": "Negra"
+  },
+  {
+   "id": "#b8c4e8",
+   "label": "Lunar"
+  },
+  {
+   "id": "#9fd1b0",
+   "label": "Silvestre"
+  }
+ ],
+ "races": [
+  {
+   "id": "human",
+   "label": "Humano",
+   "parts": []
+  }
+ ],
+ "hair": [
+  {
+   "id": "hair_messy",
+   "label": "Bagunçado"
+  },
+  {
+   "id": "hair_hero",
+   "label": "Herói"
+  },
+  {
+   "id": "hair_straight",
+   "label": "Liso"
+  },
+  {
+   "id": "hair_medium",
+   "label": "Médio"
+  },
+  {
+   "id": "hair_ponytail",
+   "label": "Rabo de cavalo"
+  }
+ ],
+ "hairColors": [
+  {
+   "id": "#2a2228",
+   "label": "Preto"
+  },
+  {
+   "id": "#4a3226",
+   "label": "Castanho escuro"
+  },
+  {
+   "id": "#7a4e30",
+   "label": "Castanho"
+  },
+  {
+   "id": "#b07a45",
+   "label": "Mel"
+  },
+  {
+   "id": "#e2c065",
+   "label": "Loiro"
+  },
+  {
+   "id": "#efe3c2",
+   "label": "Platinado"
+  },
+  {
+   "id": "#c9c9d4",
+   "label": "Grisalho"
+  },
+  {
+   "id": "#b4462c",
+   "label": "Ruivo"
+  },
+  {
+   "id": "#d97e9a",
+   "label": "Rosa"
+  },
+  {
+   "id": "#7c5cc4",
+   "label": "Lilás"
+  },
+  {
+   "id": "#4f7fc9",
+   "label": "Azul"
+  },
+  {
+   "id": "#5f9e6e",
+   "label": "Verde"
+  }
+ ],
+ "eyes": [
+  {
+   "id": "eyes_brown",
+   "label": "Castanhos"
+  },
+  {
+   "id": "eyes_dark",
+   "label": "Escuros"
+  },
+  {
+   "id": "eyes_blue",
+   "label": "Azuis"
+  },
+  {
+   "id": "eyes_green",
+   "label": "Verdes"
+  }
+ ],
+ "beards": [
+  {
+   "id": "",
+   "label": "Nenhuma"
+  }
+ ],
+ "randomSkins": 6,
+ "randomHairColors": 9
+}

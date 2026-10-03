@@ -301,9 +301,21 @@ internal sealed class SolunaGame : Game
         }
         if (!_options.Play && !_options.Walk) return;
         if (_select.Slots[0] == null)
-            Send(PacketType.CreateCharacter, w => { w.Put((byte)0); w.Put(_options.Name); Appearance.Random(Random.Shared).Write(w); });
+            Send(PacketType.CreateCharacter, w => { w.Put((byte)0); w.Put(_options.Name); TestLook().Write(w); });
         else
             Send(PacketType.PlayCharacter, w => w.Put((byte)0));
+    }
+
+    /// <summary>Random look for test characters, including race and beard so a crowd of them shows the art off.</summary>
+    private static Appearance TestLook()
+    {
+        var o = CharacterOptions.Current;
+        var rng = Random.Shared;
+        return Appearance.Random(rng) with
+        {
+            Race = (byte)rng.Next(Math.Max(1, o.Races.Length)),
+            Beard = (byte)(rng.Next(3) == 0 ? rng.Next(Math.Max(1, o.Beards.Length)) : 0),
+        };
     }
 
     // ---- Update ----
@@ -395,6 +407,7 @@ internal sealed class SolunaGame : Game
         if (_map == null || _local == null) return;
 
         UpdateLocal(dt * 1000);
+        if (_options.Walk) TryOnRandomItem(dt);
         foreach (var other in _others.Values) other.Update(dt * 1000);
 
         if (_editor.Update(_input, _map, _camera, Screen) && _editor.Dirty) SaveMap();
@@ -469,6 +482,19 @@ internal sealed class SolunaGame : Game
         if (_input.Down(Keys.Left) || _input.Down(Keys.A)) return Direction.Left;
         if (_input.Down(Keys.Right) || _input.Down(Keys.D)) return Direction.Right;
         return null;
+    }
+
+    private float _tryOnIn = 1;
+
+    /// <summary>Test characters put on random things from their inventory every few seconds.</summary>
+    private void TryOnRandomItem(float dt)
+    {
+        _tryOnIn -= dt;
+        if (_tryOnIn > 0 || _inventory.Inventory.Count == 0) return;
+        _tryOnIn = 1.5f + Random.Shared.NextSingle() * 3;
+        var item = _inventory.Inventory[Random.Shared.Next(_inventory.Inventory.Count)];
+        if (_items.Get(item) is { } def && _local!.Equipment[def.Slot] != item)
+            Send(PacketType.EquipToggle, w => w.Put(item));
     }
 
     private Direction? Wander()

@@ -1,63 +1,113 @@
+using System.Text.Json;
 using LiteNetLib.Utils;
 
 namespace Soluna.Shared;
 
+/// <summary>One choice at character creation: an id (a layer name or a colour) and what the player sees.</summary>
+public sealed record Choice(string Id, string Label, string[]? Parts = null);
+
 /// <summary>
-/// Choices offered at character creation. Ids are chibi layer names (see
-/// assets/characters/chibi/catalog.json) or colours; labels are what the player sees.
+/// The choices offered at character creation, read from the active character art set's
+/// options.json (see <see cref="CharacterArt"/>), so each art set brings its own bodies,
+/// skins, races, hair and eyes. Server and client read the same file.
 /// </summary>
-public static class CharacterOptions
+public sealed class CharacterOptions
 {
-    public static readonly (string id, string label)[] Bodies = [("m", "Masculino"), ("f", "Feminino")];
+    /// <summary>
+    /// Sheet for the body. {body} and {skin} are replaced by the chosen ids. When skins are
+    /// colours ("#rrggbb") the template has no {skin} and the body is painted instead.
+    /// </summary>
+    public string Body { get; init; } = "body_{body}";
 
-    public static readonly (string id, string label)[] Skins =
-    [
-        ("#f6d2b4", "Clara"), ("#eab793", "Pêssego"), ("#d39a6f", "Dourada"), ("#b57a52", "Morena clara"),
-        ("#94603d", "Morena"), ("#6e432a", "Negra"),
-        ("#b8c4e8", "Lunar"), ("#9fd1b0", "Silvestre"),
-    ];
+    public Choice[] Bodies { get; init; } = [];
+    public Choice[] Skins { get; init; } = [];
 
-    public static readonly (string id, string label)[] HairStyles =
-    [
-        ("hair_messy", "Bagunçado"), ("hair_hero", "Herói"), ("hair_straight", "Liso"),
-        ("hair_medium", "Médio"), ("hair_ponytail", "Rabo de cavalo"),
-    ];
+    /// <summary>Extra layers per race, such as ears and tails; {skin} is replaced so they can match the skin.</summary>
+    public Choice[] Races { get; init; } = [new("human", "Humano", [])];
 
-    public static readonly (string id, string label)[] HairColors =
-    [
-        ("#2a2228", "Preto"), ("#4a3226", "Castanho escuro"), ("#7a4e30", "Castanho"), ("#b07a45", "Mel"),
-        ("#e2c065", "Loiro"), ("#efe3c2", "Platinado"), ("#c9c9d4", "Grisalho"), ("#b4462c", "Ruivo"),
-        ("#d97e9a", "Rosa"), ("#7c5cc4", "Lilás"), ("#4f7fc9", "Azul"), ("#5f9e6e", "Verde"),
-    ];
+    public Choice[] Hair { get; init; } = [];
+    public Choice[] HairColors { get; init; } = [];
+    public Choice[] Eyes { get; init; } = [];
 
-    public static readonly (string id, string label)[] EyeColors =
-    [
-        ("eyes_brown", "Castanhos"), ("eyes_dark", "Escuros"), ("eyes_blue", "Azuis"), ("eyes_green", "Verdes"),
-    ];
+    /// <summary>Beards, painted in the hair colour. An empty id means none.</summary>
+    public Choice[] Beards { get; init; } = [new("", "Nenhuma")];
+
+    /// <summary>
+    /// Sheets worn when a slot is empty, by slot name, so taking clothes off never leaves a bare body
+    /// in art sets whose bodies are drawn without any.
+    /// </summary>
+    public Dictionary<string, string> Defaults { get; init; } = [];
+
+    /// <summary>How many of the first skins and hair colours a random character may get (the natural ones).</summary>
+    public int RandomSkins { get; init; }
+    public int RandomHairColors { get; init; }
+    public int RandomEyes { get; init; }
+
+    private static CharacterOptions? _current;
+
+    /// <summary>The options of the active art set, loaded once.</summary>
+    public static CharacterOptions Current => _current ??= Load(Path.Combine(CharacterArt.Folder, "options.json"));
+
+    public static CharacterOptions Load(string path)
+    {
+        if (!File.Exists(path)) return new CharacterOptions();
+        var options = JsonSerializer.Deserialize<CharacterOptions>(File.ReadAllText(path),
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        return options ?? new CharacterOptions();
+    }
 }
 
-/// <summary>How a character was made at creation: indices into <see cref="CharacterOptions"/>.</summary>
-public sealed record Appearance(byte Body, byte Skin, byte Hair, byte HairColor, byte Eyes)
+/// <summary>
+/// Which character art the engine uses: a private set in assets/characters/private/&lt;name&gt; when one is
+/// installed (art that may be used but not redistributed), otherwise the chibi set that ships with the repo.
+/// </summary>
+public static class CharacterArt
 {
-    public string BodyId => CharacterOptions.Bodies[Body].id;
-    public string SkinId => CharacterOptions.Skins[Skin].id;
-    public string HairId => CharacterOptions.HairStyles[Hair].id;
-    public string HairColorId => CharacterOptions.HairColors[HairColor].id;
-    public string EyesId => CharacterOptions.EyeColors[Eyes].id;
+    public static string Folder { get; } = Find();
+
+    private static string Find()
+    {
+        var root = Path.Combine(DataPaths.Assets, "characters");
+        var privateSet = Directory.Exists(Path.Combine(root, "private"))
+            ? Directory.EnumerateDirectories(Path.Combine(root, "private"))
+                .Where(d => File.Exists(Path.Combine(d, "catalog.json")) && File.Exists(Path.Combine(d, "options.json")))
+                .Order()
+                .FirstOrDefault()
+            : null;
+        return privateSet ?? Path.Combine(root, "chibi");
+    }
+}
+
+/// <summary>How a character was made at creation: indices into <see cref="CharacterOptions.Current"/>.</summary>
+public sealed record Appearance(byte Body, byte Skin, byte Hair, byte HairColor, byte Eyes, byte Race = 0, byte Beard = 0)
+{
+    private static CharacterOptions O => CharacterOptions.Current;
+
+    public string BodyId => Pick(O.Bodies, Body).Id;
+    public string SkinId => Pick(O.Skins, Skin).Id;
+    public string HairId => Pick(O.Hair, Hair).Id;
+    public string HairColorId => Pick(O.HairColors, HairColor).Id;
+    public string EyesId => Pick(O.Eyes, Eyes).Id;
+    public Choice RaceChoice => Pick(O.Races, Race);
+    public string BeardId => Pick(O.Beards, Beard).Id;
 
     public bool IsValid =>
-        Body < CharacterOptions.Bodies.Length
-        && Skin < CharacterOptions.Skins.Length
-        && Hair < CharacterOptions.HairStyles.Length
-        && HairColor < CharacterOptions.HairColors.Length
-        && Eyes < CharacterOptions.EyeColors.Length;
+        Body < O.Bodies.Length && Skin < O.Skins.Length && Hair < O.Hair.Length && HairColor < O.HairColors.Length
+        && Eyes < O.Eyes.Length && Race < O.Races.Length && Beard < O.Beards.Length;
 
+    /// <summary>
+    /// A random look with natural colours. A saved look from another art set may point past the end
+    /// of these lists; <see cref="Pick"/> wraps it round rather than failing.
+    /// </summary>
     public static Appearance Random(Random rng) => new(
-        (byte)rng.Next(CharacterOptions.Bodies.Length),
-        (byte)rng.Next(6), // natural skin tones only
-        (byte)rng.Next(CharacterOptions.HairStyles.Length),
-        (byte)rng.Next(9), // natural hair colours only
-        (byte)rng.Next(CharacterOptions.EyeColors.Length));
+        (byte)rng.Next(Math.Max(1, O.Bodies.Length)),
+        (byte)rng.Next(Math.Max(1, O.RandomSkins > 0 ? O.RandomSkins : O.Skins.Length)),
+        (byte)rng.Next(Math.Max(1, O.Hair.Length)),
+        (byte)rng.Next(Math.Max(1, O.RandomHairColors > 0 ? O.RandomHairColors : O.HairColors.Length)),
+        (byte)rng.Next(Math.Max(1, O.RandomEyes > 0 ? O.RandomEyes : O.Eyes.Length)));
+
+    private static Choice Pick(Choice[] choices, byte index) =>
+        choices.Length == 0 ? new Choice("", "") : choices[index % choices.Length];
 
     public void Write(NetDataWriter w)
     {
@@ -66,7 +116,10 @@ public sealed record Appearance(byte Body, byte Skin, byte Hair, byte HairColor,
         w.Put(Hair);
         w.Put(HairColor);
         w.Put(Eyes);
+        w.Put(Race);
+        w.Put(Beard);
     }
 
-    public static Appearance Read(NetDataReader r) => new(r.GetByte(), r.GetByte(), r.GetByte(), r.GetByte(), r.GetByte());
+    public static Appearance Read(NetDataReader r) =>
+        new(r.GetByte(), r.GetByte(), r.GetByte(), r.GetByte(), r.GetByte(), r.GetByte(), r.GetByte());
 }

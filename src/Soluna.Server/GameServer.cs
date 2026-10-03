@@ -77,6 +77,9 @@ internal sealed class GameServer
     private int _nextId = 1;
     private long _lastAutosave;
 
+    /// <summary>Development: new characters start with every item, to try the wardrobe without /item.</summary>
+    public bool StarterGetsAllItems { get; init; }
+
     public GameServer(MapStore maps, ItemCatalog items, AccountStore accounts)
     {
         _maps = maps;
@@ -232,7 +235,7 @@ internal sealed class GameServer
             Name = name,
             Look = look,
             Equipment = _items.StarterEquipment().Items.ToArray(),
-            Inventory = _items.StarterItems.ToList(),
+            Inventory = StarterGetsAllItems ? _items.All.Select(i => i.Id).ToList() : _items.StarterItems.ToList(),
         };
         _accounts.ClaimName(name);
         _accounts.Save(account);

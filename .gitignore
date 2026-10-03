@@ -12,3 +12,6 @@ data/accounts/
 
 # Maps that use private art.
 data/maps/private/
+
+# Game data that goes with private art (items for a private character set).
+data/private/
