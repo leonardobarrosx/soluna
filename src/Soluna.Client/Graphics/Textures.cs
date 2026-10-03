@@ -61,6 +61,18 @@ internal sealed class Textures(GraphicsDevice device)
         return texture;
     }
 
+    private readonly Dictionary<string, Texture2D?> _sheets = [];
+
+    /// <summary>A sprite sheet by path under assets/, or null when the file is missing.</summary>
+    public Texture2D? Sheet(string assetPath)
+    {
+        if (_sheets.TryGetValue(assetPath, out var cached)) return cached;
+        var path = Path.Combine(DataPaths.Assets, assetPath);
+        var sheet = assetPath.Length > 0 && File.Exists(path) ? Load(path) : null;
+        _sheets[assetPath] = sheet;
+        return sheet;
+    }
+
     private Texture2D Load(string path)
     {
         using var stream = File.OpenRead(path);

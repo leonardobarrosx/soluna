@@ -100,6 +100,8 @@ public sealed class MapData
 
     public List<Warp> Warps { get; set; } = [];
 
+    public List<NpcSpawn> Npcs { get; set; } = [];
+
     /// <summary>Tileset file names, indexed by the tileset part of a tile ref.</summary>
     public List<string> Tilesets { get; set; } = [];
 

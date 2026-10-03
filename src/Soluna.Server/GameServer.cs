@@ -22,6 +22,20 @@ internal sealed class Player
 
     public bool IsAdmin => Account.Access > 0;
 
+    public int Level { get; set; } = 1;
+    public int Exp { get; set; }
+    public int Hp { get; set; }
+    public int Mp { get; set; }
+    public int MaxHp => Formulas.MaxHp(Level);
+    public int MaxMp => Formulas.MaxMp(Level);
+    public long NextAttackMs { get; set; }
+    public long LastCombatMs { get; set; }
+
+    /// <summary>Attack from level plus everything worn.</summary>
+    public int AttackPower(ItemCatalog items) => Formulas.Attack(Level) + Equipment.Items.Sum(id => items.Get(id)?.Attack ?? 0);
+
+    public int DefensePower(ItemCatalog items) => Formulas.Defense(Level) + Equipment.Items.Sum(id => items.Get(id)?.Defense ?? 0);
+
     /// <summary>Milliseconds of walking this player may still spend; refills with real time.</summary>
     public float MoveBudgetMs { get; set; } = GameServer.MoveBudgetCapMs;
 
@@ -42,6 +56,10 @@ internal sealed class Player
             X = X,
             Y = Y,
             Dir = Dir,
+            Level = Level,
+            Exp = Exp,
+            Hp = Hp,
+            Mp = Mp,
         };
     }
 }
@@ -58,7 +76,7 @@ internal sealed class Session(NetPeer peer)
 /// Authoritative server: owns accounts, maps and every player's position. Clients move
 /// on their own for responsiveness and the server confirms or snaps them back.
 /// </summary>
-internal sealed class GameServer
+internal sealed partial class GameServer
 {
     private const long AutosaveMs = 60_000;
 
@@ -69,6 +87,7 @@ internal sealed class GameServer
 
     private readonly MapStore _maps;
     private readonly ItemCatalog _items;
+    private readonly NpcCatalog _npcs;
     private readonly AccountStore _accounts;
     private readonly EventBasedNetListener _listener = new();
     private readonly NetManager _net;
@@ -80,10 +99,11 @@ internal sealed class GameServer
     /// <summary>Development: new characters start with every item, to try the wardrobe without /item.</summary>
     public bool StarterGetsAllItems { get; init; }
 
-    public GameServer(MapStore maps, ItemCatalog items, AccountStore accounts)
+    public GameServer(MapStore maps, ItemCatalog items, AccountStore accounts, NpcCatalog npcs)
     {
         _maps = maps;
         _items = items;
+        _npcs = npcs;
         _accounts = accounts;
         _net = new NetManager(_listener) { AutoRecycle = true };
 
@@ -95,7 +115,8 @@ internal sealed class GameServer
 
     public void Start(int port)
     {
-        _maps.Get(MapStore.StartMapId);
+        SeedDemoNpcs(_maps.Get(MapStore.StartMapId));
+        if (_maps.Exists(2)) SeedDemoNpcs(_maps.Get(2));
         if (!_net.Start(port)) throw new InvalidOperationException($"Could not bind UDP port {port}.");
     }
 
@@ -113,6 +134,7 @@ internal sealed class GameServer
     public void Tick()
     {
         Ticks++;
+        TickWorld();
         if (_clock.ElapsedMilliseconds - _lastAutosave < AutosaveMs) return;
         _lastAutosave = _clock.ElapsedMilliseconds;
         SaveAll();
@@ -153,6 +175,7 @@ internal sealed class GameServer
                     case PacketType.MapSave: HandleMapSave(player, reader); break;
                     case PacketType.EquipToggle: HandleEquip(player, reader); break;
                     case PacketType.MapRequest: HandleMapRequest(player, reader); break;
+                    case PacketType.Attack: HandleAttack(player, reader); break;
                     default: Log.Warn($"Unexpected {type} from {player.Name}."); break;
                 }
                 return;
@@ -219,6 +242,9 @@ internal sealed class GameServer
         var catalog = PacketIO.Begin(PacketType.ItemCatalog);
         catalog.Put(_items.Json);
         session.Peer.Send(catalog, DeliveryMethod.ReliableOrdered);
+        var npcs = PacketIO.Begin(PacketType.NpcCatalog);
+        npcs.Put(_npcs.Json);
+        session.Peer.Send(npcs, DeliveryMethod.ReliableOrdered);
         SendCharacterList(session);
         Log.Info($"'{account.Username}' logged in.");
     }
@@ -302,7 +328,11 @@ internal sealed class GameServer
             Equipment = equipment,
             Inventory = save.Inventory.Where(id => _items.Get(id) != null).ToList(),
             LastBudgetCheckMs = _clock.ElapsedMilliseconds,
+            Level = Math.Clamp(save.Level, 1, Formulas.MaxLevel),
+            Exp = Math.Max(0, save.Exp),
         };
+        player.Hp = save.Hp > 0 ? Math.Min(save.Hp, player.MaxHp) : player.MaxHp;
+        player.Mp = save.Mp >= 0 ? Math.Min(save.Mp, player.MaxMp) : player.MaxMp;
 
         var ok = PacketIO.Begin(PacketType.LoginOk);
         ok.Put(player.Info);
@@ -312,6 +342,7 @@ internal sealed class GameServer
 
         session.Player = player;
         PlaceOnMap(player, map, x, y);
+        SendVitals(player);
         BroadcastChat(player.MapId, "", $"{player.Name} chegou.");
         Log.Info($"{player.Name} (#{player.Id}, '{account.Username}') entered map {map.Id} at {x},{y}.");
     }
@@ -344,6 +375,7 @@ internal sealed class GameServer
             player.Peer.Send(existing, DeliveryMethod.ReliableOrdered);
         }
         Broadcast(map.Id, Joined(player), except: player);
+        SendNpcs(player, map);
     }
 
     /// <summary>Moves a player to another map (or another spot on the same one).</summary>
@@ -507,7 +539,7 @@ internal sealed class GameServer
                 Tell(player, "Mapas: " + string.Join(", ", _maps.Ids().Select(id => $"{id} {_maps.Get(id).Name}")));
                 break;
 
-            case "/ir" or "/trazer" or "/novomapa" or "/mapa" when !player.IsAdmin:
+            case "/ir" or "/trazer" or "/novomapa" or "/mapa" or "/npc" when !player.IsAdmin:
                 Tell(player, "Comando de administrador.");
                 break;
 
@@ -547,8 +579,21 @@ internal sealed class GameServer
                 MapCommand(player, parts);
                 break;
 
+            case "/npc":
+                NpcCommand(player, parts);
+                break;
+
+            case "/npcs":
+                Tell(player, "NPCs: " + string.Join(", ", _npcs.All.Select(n => $"{n.Id} {n.Name}")));
+                break;
+
+            case "/status":
+                Tell(player, $"Nível {player.Level}, HP {player.Hp}/{player.MaxHp}, MP {player.Mp}/{player.MaxMp}, " +
+                             $"ataque {player.AttackPower(_items)}, defesa {player.DefensePower(_items)}, XP {player.Exp}/{Formulas.ExpToNext(player.Level)}.");
+                break;
+
             default:
-                Tell(player, "Comandos: /online, /mapas, /itens. Admin: /item <id>, /ir <mapa> [x y], /trazer <nome>, /novomapa <l> <a> [nome], /mapa.");
+                Tell(player, "Comandos: /online, /mapas, /itens, /npcs, /status. Admin: /item <id>, /ir <mapa> [x y], /trazer <nome>, /novomapa <l> <a> [nome], /mapa, /npc <id>|remover.");
                 break;
         }
     }

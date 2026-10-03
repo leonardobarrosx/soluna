@@ -28,6 +28,32 @@ internal sealed class Character(int id, string name, Appearance look, Equipment 
 
     public bool Moving => Progress < 1;
 
+    /// <summary>Health for the bar over the head; MaxHp 0 means unknown (no bar until the first hit).</summary>
+    public int Hp { get; set; }
+    public int MaxHp { get; set; }
+
+    /// <summary>Goes from 1 to 0 over an attack swing; the sprite leans toward the target meanwhile.</summary>
+    public float Lunge { get; private set; }
+
+    private const float LungeSeconds = 0.18f;
+
+    public void Swing(Direction dir)
+    {
+        Dir = dir;
+        Lunge = 1;
+    }
+
+    /// <summary>Extra drawing offset while swinging: a quick lean of a few pixels toward the facing direction.</summary>
+    public Vector2 LungeOffset
+    {
+        get
+        {
+            if (Lunge <= 0) return Vector2.Zero;
+            var (dx, dy) = Dir.Delta();
+            return new Vector2(dx, dy) * (MathF.Sin(MathF.PI * Lunge) * 6);
+        }
+    }
+
     public void Place(int x, int y, Direction dir)
     {
         TileX = _fromX = x;
@@ -50,6 +76,7 @@ internal sealed class Character(int id, string name, Appearance look, Equipment 
     /// <summary>Advances the walk. Returns the milliseconds left over if the step finished this frame.</summary>
     public float Update(float elapsedMs)
     {
+        if (Lunge > 0) Lunge = Math.Max(0, Lunge - elapsedMs / 1000f / LungeSeconds);
         if (!Moving) return 0;
         Progress += elapsedMs / Constants.WalkTimeMs;
         if (Progress < 1) return 0;

@@ -15,7 +15,9 @@ var items = ItemCatalog.Load();
 Log.Info($"Loaded {items.All.Count()} items.");
 var accounts = new AccountStore(Path.Combine(DataPaths.Data, "accounts"));
 // --all-items: new characters get the whole wardrobe (development).
-var server = new GameServer(maps, items, accounts) { StarterGetsAllItems = args.Contains("--all-items") };
+var npcs = NpcCatalog.Load();
+Log.Info($"Loaded {npcs.All.Count()} NPC definitions.");
+var server = new GameServer(maps, items, accounts, npcs) { StarterGetsAllItems = args.Contains("--all-items") };
 
 var running = true;
 Console.CancelKeyPress += (_, e) =>

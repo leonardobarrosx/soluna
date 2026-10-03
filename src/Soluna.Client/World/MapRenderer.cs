@@ -41,13 +41,15 @@ internal sealed class MapRenderer(Textures textures, Sprites sprites)
         batch.Draw(texture, position, source, tint);
     }
 
-    public void DrawCharacter(SpriteBatch batch, Character character)
+    public void DrawCharacter(SpriteBatch batch, Character character) =>
+        DrawCharacter(batch, character, sprites.SheetFor(character.Look, character.Equipment));
+
+    public void DrawCharacter(SpriteBatch batch, Character character, Texture2D sheet)
     {
-        var sheet = sprites.SheetFor(character.Look, character.Equipment);
         var frame = SheetLayout.Frame(sheet, character.Dir, character.Moving, character.Progress, character.LeftFoot);
         var shadow = textures.Shadow;
         batch.Draw(shadow, character.Position + new Vector2((S - shadow.Width) / 2f, S - shadow.Height + 1), Color.White);
-        batch.Draw(sheet, character.Position + SheetLayout.Offset(sheet), frame, Color.White);
+        batch.Draw(sheet, character.Position + character.LungeOffset + SheetLayout.Offset(sheet), frame, Color.White);
     }
 
     public static (int x0, int y0, int x1, int y1) VisibleTiles(MapData map, Camera camera)

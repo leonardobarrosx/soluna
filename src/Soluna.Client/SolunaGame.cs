@@ -48,6 +48,14 @@ internal sealed class SolunaGame : Game
 
     // Filled by the server after login; nothing about items is read from disk on the client.
     private readonly ItemCatalog _items = ItemCatalog.Empty();
+    private readonly NpcCatalog _npcDefs = new();
+
+    /// <summary>NPCs on the current map by their index on it, with their definition.</summary>
+    private readonly Dictionary<int, (Character view, NpcDef def)> _npcs = [];
+
+    private readonly Hud _hud = new();
+    private readonly FloatingText _floating = new();
+    private float _nextAttackIn;
 
     private SpriteBatch _batch = null!;
     private Textures _textures = null!;
@@ -161,6 +169,7 @@ internal sealed class SolunaGame : Game
         _map = null;
         _local = null;
         _others.Clear();
+        _npcs.Clear();
         _creation = null;
         _retryIn = _loggingOut ? 0 : RetrySeconds;
         _login.Online = false;
@@ -190,6 +199,59 @@ internal sealed class SolunaGame : Game
                 _items.Replace(r.GetString());
                 _sprites.Clear();
                 break;
+
+            case PacketType.NpcCatalog:
+                _npcDefs.Replace(r.GetString());
+                break;
+
+            case PacketType.NpcSpawned:
+            {
+                var index = r.GetInt();
+                var def = _npcDefs.Get(r.GetInt());
+                var (x, y, dir) = (r.GetInt(), r.GetInt(), (Direction)r.GetByte());
+                var (hp, maxHp) = (r.GetInt(), r.GetInt());
+                if (def == null) break;
+                var view = new Character(-1, def.Name, def.Look ?? new Appearance(0, 0, 0, 0, 0), new Equipment()) { Hp = hp, MaxHp = maxHp };
+                view.Place(x, y, dir);
+                _npcs[index] = (view, def);
+                break;
+            }
+            case PacketType.NpcMoved:
+            {
+                var index = r.GetInt();
+                var (x, y, dir) = (r.GetInt(), r.GetInt(), (Direction)r.GetByte());
+                if (!_npcs.TryGetValue(index, out var npc)) break;
+                if (Math.Abs(x - npc.view.TileX) + Math.Abs(y - npc.view.TileY) == 1) npc.view.StartMove(dir, x, y);
+                else npc.view.Place(x, y, dir);
+                break;
+            }
+            case PacketType.NpcRemoved:
+                _npcs.Remove(r.GetInt());
+                break;
+
+            case PacketType.Vitals:
+                (_hud.Hp, _hud.MaxHp, _hud.Mp, _hud.MaxMp) = (r.GetInt(), r.GetInt(), r.GetInt(), r.GetInt());
+                (_hud.Level, _hud.Exp, _hud.ExpToNext) = (r.GetInt(), r.GetInt(), r.GetInt());
+                break;
+
+            case PacketType.HpChanged:
+            {
+                var kind = (UnitKind)r.GetByte();
+                var id = r.GetInt();
+                var (hp, maxHp, change) = (r.GetInt(), r.GetInt(), r.GetInt());
+                if (Unit(kind, id) is not { } unit) break;
+                (unit.Hp, unit.MaxHp) = (hp, maxHp);
+                _floating.Add(unit.Position + new Vector2(Constants.TileSize / 2f, 0), change);
+                break;
+            }
+            case PacketType.Attacked:
+            {
+                var kind = (UnitKind)r.GetByte();
+                var id = r.GetInt();
+                var dir = (Direction)r.GetByte();
+                Unit(kind, id)?.Swing(dir);
+                break;
+            }
 
             case PacketType.CharacterList:
                 OnCharacterList(r);
@@ -294,6 +356,7 @@ internal sealed class SolunaGame : Game
     {
         _awaitingTransfer = false;
         _others.Clear();
+        _npcs.Clear();
         _local?.Place(x, y, dir);
 
         if (_map?.Id == id && _map.Revision == revision) return;
@@ -333,6 +396,10 @@ internal sealed class SolunaGame : Game
             return null;
         }
     }
+
+    private Character? Unit(UnitKind kind, int id) => kind == UnitKind.Npc
+        ? (_npcs.TryGetValue(id, out var npc) ? npc.view : null)
+        : id == _local?.Id ? _local : _others.GetValueOrDefault(id);
 
     private void OnRefused(string message)
     {
@@ -484,6 +551,9 @@ internal sealed class SolunaGame : Game
         UpdateLocal(dt * 1000);
         if (_options.Walk) TryOnRandomItem(dt);
         foreach (var other in _others.Values) other.Update(dt * 1000);
+        foreach (var (view, _) in _npcs.Values) view.Update(dt * 1000);
+        _floating.Update(dt);
+        UpdateAttack(dt);
 
         if (_editor.Update(_input, _map, _camera, Screen) && _editor.Dirty) SaveMap();
         if (_inventory.Update(_input, Screen) is { } clicked) Send(PacketType.EquipToggle, w => w.Put(clicked));
@@ -602,6 +672,36 @@ internal sealed class SolunaGame : Game
             Send(PacketType.EquipToggle, w => w.Put(item));
     }
 
+    /// <summary>Space or Ctrl attacks what is in front, as often as the attack speed allows while held.</summary>
+    private void UpdateAttack(float dt)
+    {
+        _nextAttackIn -= dt;
+        if (_nextAttackIn > 0 || _chat.Typing || _local == null || _local.Moving) return;
+
+        var wants = _input.Down(Keys.Space) || _input.Down(Keys.LeftControl) && !_input.Down(Keys.S);
+        if (_options.Walk) wants = FaceAdjacentMonster();
+        if (!wants) return;
+
+        _nextAttackIn = Formulas.PlayerAttackMs / 1000f;
+        _local.Swing(_local.Dir);
+        var dir = _local.Dir;
+        Send(PacketType.Attack, w => w.Put((byte)dir));
+    }
+
+    /// <summary>Test characters turn to a hostile NPC standing next to them, and say whether they found one.</summary>
+    private bool FaceAdjacentMonster()
+    {
+        foreach (var (view, def) in _npcs.Values)
+        {
+            if (!def.Hostile) continue;
+            var (dx, dy) = (view.TileX - _local!.TileX, view.TileY - _local.TileY);
+            if (Math.Abs(dx) + Math.Abs(dy) != 1) continue;
+            _local.Dir = dx > 0 ? Direction.Right : dx < 0 ? Direction.Left : dy > 0 ? Direction.Down : Direction.Up;
+            return true;
+        }
+        return false;
+    }
+
     private Direction? Wander()
     {
         _wanderSeconds -= (float)TargetElapsedTime.TotalSeconds;
@@ -643,6 +743,7 @@ internal sealed class SolunaGame : Game
             case Stage.World when inWorld:
                 DrawNames();
                 DrawStatusBar(_map!);
+                _hud.Draw(_batch, _textures.Pixel, _fonts);
                 _chat.Draw(_batch, _textures.Pixel, _fonts, Screen);
                 _editor.DrawPanel(_batch, _fonts, _map!, Screen);
                 _inventory.Draw(_batch, _textures.Pixel, _fonts, _local!, Screen);
@@ -673,8 +774,10 @@ internal sealed class SolunaGame : Game
         _batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, transformMatrix: _camera.Transform);
 
         _renderer.DrawLayers(_batch, map, _camera, 0, map.FringeFrom);
-        foreach (var character in _others.Values.Append(local).OrderBy(c => c.Position.Y))
-            _renderer.DrawCharacter(_batch, character);
+        var units = _others.Values.Append(local).Select(c => (c, sheet: _sprites.SheetFor(c.Look, c.Equipment)))
+            .Concat(_npcs.Values.Select(n => (n.view, sheet: NpcSheet(n.def))));
+        foreach (var (character, sheet) in units.OrderBy(u => u.Item1.Position.Y))
+            _renderer.DrawCharacter(_batch, character, sheet);
         _renderer.DrawLayers(_batch, map, _camera, map.FringeFrom, map.Layers.Length);
         _editor.DrawWorld(_batch, map, _camera);
 
@@ -706,13 +809,37 @@ internal sealed class SolunaGame : Game
     private void DrawNames()
     {
         foreach (var character in _others.Values.Append(_local!))
+            NameAndBar(character, _sprites.SheetFor(character.Look, character.Equipment), character == _local ? Theme.Sol : Theme.Text);
+        foreach (var (view, def) in _npcs.Values)
+            NameAndBar(view, NpcSheet(def), def.Hostile ? Theme.Danger : Theme.TextDim);
+        _floating.Draw(_batch, _fonts, _camera.WorldToScreen);
+    }
+
+    /// <summary>The name over a unit's head, with a health bar under it once it has been hurt.</summary>
+    private void NameAndBar(Character unit, Texture2D sheet, Color color)
+    {
+        var top = unit.Position + SheetLayout.Offset(sheet) + new Vector2(0, SheetLayout.HeadTop(sheet));
+        var head = _camera.WorldToScreen(new Vector2(unit.Position.X + Constants.TileSize / 2f, top.Y - 3)) - new Vector2(0, 8);
+        Ui.Tag(_batch, _textures.Pixel, _fonts.Small, unit.Name, head, color);
+        if (unit.MaxHp <= 0 || unit.Hp >= unit.MaxHp) return;
+        var bar = new Rectangle((int)head.X - 18, (int)head.Y + 9, 36, 4);
+        _batch.Draw(_textures.Pixel, bar, Theme.Background);
+        _batch.Draw(_textures.Pixel, new Rectangle(bar.X, bar.Y, bar.Width * Math.Max(0, unit.Hp) / unit.MaxHp, bar.Height), Theme.Danger);
+    }
+
+    /// <summary>An NPC's sheet: its paper-doll look, its sprite file, or a placeholder.</summary>
+    private Texture2D NpcSheet(NpcDef def) =>
+        def.Look != null ? _sprites.SheetFor(def.Look, NpcEquipment(def))
+        : _textures.Sheet(def.Sprite) ?? _textures.Character(def.Id);
+
+    private Equipment NpcEquipment(NpcDef def)
+    {
+        var equipment = new Equipment();
+        foreach (var id in def.Wears)
         {
-            var sheet = _sprites.SheetFor(character.Look, character.Equipment);
-            var top = character.Position + SheetLayout.Offset(sheet) + new Vector2(0, SheetLayout.HeadTop(sheet));
-            var head = new Vector2(character.Position.X + Constants.TileSize / 2f, top.Y - 3);
-            var color = character == _local ? Theme.Sol : Theme.Text;
-            Ui.Tag(_batch, _textures.Pixel, _fonts.Small, character.Name, _camera.WorldToScreen(head) - new Vector2(0, 8), color);
+            if (_items.Get(id) is { } item) equipment[item.Slot] = id;
         }
+        return equipment;
     }
 
     private void DrawStatusBar(MapData map)

@@ -1,0 +1,6 @@
+[
+  { "id": 1, "name": "Aldeão", "behaviour": "Friendly", "hp": 30, "look": { "body": 0, "skin": 1, "hair": 0, "hairColor": 2, "eyes": 0 }, "wears": [3, 20] },
+  { "id": 2, "name": "Aldeã", "behaviour": "Friendly", "hp": 30, "look": { "body": 1, "skin": 3, "hair": 4, "hairColor": 4, "eyes": 2 }, "wears": [5] },
+  { "id": 10, "name": "Sombra", "behaviour": "Aggressive", "hp": 26, "attack": 8, "defense": 1, "exp": 10, "range": 4, "look": { "body": 0, "skin": 6, "hair": 1, "hairColor": 0, "eyes": 1 }, "wears": [6] },
+  { "id": 11, "name": "Andarilho", "behaviour": "Passive", "hp": 40, "attack": 10, "defense": 2, "exp": 16, "look": { "body": 1, "skin": 7, "hair": 2, "hairColor": 9, "eyes": 3 }, "wears": [4, 21] }
+]

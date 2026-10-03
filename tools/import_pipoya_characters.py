@@ -4,8 +4,9 @@ for local use: the parts may be used in games but not redistributed, so everythi
 goes to folders git ignores.
 
   input   assets/tilesets/private/Pipoya Character Sprite 32 Generator for itch/.../pipoya32x32_characters
-  output  assets/characters/private/pipoya/   parts/*.png, catalog.json, options.json
+  output  assets/characters/private/pipoya/   parts/*.png, catalog.json, options.json, npcs/*.png
           data/private/items.json             equipment that uses those parts
+          data/private/npcs.json              NPCs and monsters from the ready-made sprite pack
 
 The zip ships Shift-JIS file names; extracted on Windows they come out as cp850 mojibake,
 some of it lossy, so names are repaired first and then matched by pattern.
@@ -23,6 +24,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SOURCE = next((ROOT / "assets" / "tilesets" / "private").glob("**/pipoya32x32_characters"), None)
 OUT = ROOT / "assets" / "characters" / "private" / "pipoya"
 ITEMS = ROOT / "data" / "private" / "items.json"
+NPCS = ROOT / "data" / "private" / "npcs.json"
+SPRITES = next((ROOT / "assets" / "tilesets" / "private").glob("PIPOYA FREE RPG Character Sprites 32x32/**/Enemy"), None)
 
 LOSSY = {"Åù": "女", "Æj": "男", "ïñùp": "共用", "û+": "目", "ò×": "服", "ö»": "髪"}
 
@@ -201,6 +204,7 @@ def main():
     (OUT / "options.json").write_text(json.dumps(options, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
     write_items(costume_ids, sheets)
+    write_npcs()
     print(f"{len(sheets)} sheets, {sum(len(v) for v in sheets.values())} layers -> {OUT.relative_to(ROOT)}")
 
 
@@ -229,11 +233,73 @@ CLOAK_NAMES = {1: "Capa azul", 2: "Capa branca", 3: "Manto branco", 4: "Capa cin
                6: "Cachecol", 7: "Lenço", 8: "Capa de viajante"}
 
 
+# Attack and defence by sheet (or sheet family, without the variant number).
+STATS = {
+    "weapon_knife": (2, 0), "weapon_dagger": (3, 0), "weapon_rod": (2, 0), "weapon_sword": (5, 0),
+    "weapon_twin_swords": (7, 0), "weapon_sword_shield": (5, 2), "weapon_shield": (0, 4), "weapon_axe": (6, 0),
+    "weapon_spear": (6, 0), "weapon_bow": (4, 0),
+    "costume_knight_1": (0, 5), "costume_knight_2": (0, 6), "costume_knight_3": (0, 6), "costume_warrior": (0, 4),
+    "costume_hero": (0, 3), "costume_king": (0, 2), "costume_thief": (0, 2), "costume_cleric": (0, 2),
+    "costume_mage": (0, 1), "costume_priest": (0, 1), "costume_villager": (0, 1), "costume_farmer": (0, 1),
+    "hat_helmet_1": (0, 2), "hat_helmet_2": (0, 3), "hat_helmet_3": (0, 3), "hat_crown": (0, 1),
+    "cloak_1": (0, 1), "cloak_2": (0, 1), "cloak_3": (0, 1), "cloak_4": (0, 1), "cloak_5": (0, 1),
+}
+
+# NPCs: id, name, sprite file under the pack, behaviour, hp, attack, defence, exp, extra fields.
+NPC_DEFS = [
+    (1, "Aldeão", "Male/Male 01-1.png", "Friendly", 30, 0, 0, 0, {}),
+    (2, "Aldeã", "Female/Female 01-1.png", "Friendly", 30, 0, 0, 0, {}),
+    (3, "Guarda", "Soldier/Soldier 01-1.png", "Friendly", 200, 0, 0, 0, {"moveMs": 1400}),
+    (4, "Gato", "Animal/Cat 01-1.png", "Friendly", 10, 0, 0, 0, {"moveMs": 500}),
+    (5, "Cachorro", "Animal/Dog 01-1.png", "Friendly", 10, 0, 0, 0, {"moveMs": 450}),
+    (10, "Fuligem", "Enemy/Enemy 16-1.png", "Passive", 18, 6, 0, 6, {"moveMs": 800}),
+    (11, "Fuligem rubra", "Enemy/Enemy 16-2.png", "Aggressive", 26, 8, 1, 10, {"range": 4}),
+    (12, "Goblin lanceiro", "Enemy/Enemy 18.png", "Aggressive", 42, 11, 3, 20, {"range": 5}),
+    (13, "Goblin arqueiro", "Enemy/Enemy 19.png", "Aggressive", 34, 10, 2, 18, {"range": 6}),
+    (14, "Goblin espadachim", "Enemy/Enemy 20.png", "Aggressive", 50, 13, 4, 25, {"range": 5}),
+    (15, "Goblin xamã", "Enemy/Enemy 21.png", "Aggressive", 38, 12, 2, 24, {"range": 6}),
+    (16, "Chefe goblin", "Enemy/Enemy 22.png", "Aggressive", 140, 18, 7, 110, {"range": 5, "respawnSeconds": 120}),
+    (20, "Esqueleto", "Enemy/Enemy 04-1.png", "Aggressive", 60, 15, 5, 32, {"range": 5}),
+    (21, "Fantasma", "Enemy/Enemy 09-1.png", "Passive", 32, 11, 1, 18, {"moveMs": 700}),
+    (22, "Abóbora", "Enemy/Enemy 03-1.png", "Passive", 45, 9, 3, 15, {}),
+    (23, "Espectro", "Enemy/Enemy 15-1.png", "Aggressive", 55, 16, 3, 35, {"range": 6}),
+    (30, "Lich", "Boss/Boss 01.png", "Aggressive", 450, 28, 12, 600, {"range": 7, "respawnSeconds": 600, "moveMs": 900}),
+]
+
+
+def write_npcs():
+    if SPRITES is None:
+        print("ready-made sprite pack not found, no NPCs")
+        return
+    pack = SPRITES.parent
+    out = OUT / "npcs"
+    out.mkdir(parents=True, exist_ok=True)
+    npcs = []
+    for npc_id, name, file, behaviour, hp, attack, defense, exp, extra in NPC_DEFS:
+        source = pack / file
+        if not source.exists():
+            print("missing", file)
+            continue
+        target = out / f"{npc_id}.png"
+        shutil.copyfile(source, target)
+        entry = {"id": npc_id, "name": name, "sprite": target.relative_to(ROOT / "assets").as_posix(),
+                 "behaviour": behaviour, "hp": hp, "attack": attack, "defense": defense, "exp": exp}
+        entry.update(extra)
+        npcs.append(entry)
+    NPCS.write_text("[\n" + ",\n".join("  " + json.dumps(n, ensure_ascii=False) for n in npcs) + "\n]\n", encoding="utf-8")
+    print(f"{len(npcs)} NPCs -> {NPCS.relative_to(ROOT)}")
+
+
 def write_items(costume_ids, sheets):
     items, next_id = [], {"Torso": 100, "Head": 200, "Weapon": 300, "Back": 400}
 
     def item(slot, name, sheet, starter=False):
         entry = {"id": next_id[slot], "name": name, "slot": slot, "sheet": sheet, "colors": []}
+        attack, defense = STATS.get(sheet, STATS.get(sheet.rsplit("_", 1)[0], (0, 0)))
+        if attack:
+            entry["attack"] = attack
+        if defense:
+            entry["defense"] = defense
         if starter:
             entry["starter"] = True
         items.append(entry)

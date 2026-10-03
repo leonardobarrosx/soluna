@@ -17,6 +17,12 @@ internal sealed class CharacterSave
     public int X { get; set; } = -1;
     public int Y { get; set; } = -1;
     public Direction Dir { get; set; }
+    public int Level { get; set; } = 1;
+    public int Exp { get; set; }
+
+    /// <summary>-1 until first saved: a new character starts full.</summary>
+    public int Hp { get; set; } = -1;
+    public int Mp { get; set; } = -1;
 
     public Shared.Equipment ToEquipment()
     {

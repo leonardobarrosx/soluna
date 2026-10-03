@@ -26,7 +26,7 @@ Soluna follows the shape of [Crystalshire](https://github.com/RobinPerris/Crysta
 - Character creation: name, body, skin tone, hair style, hair colour and eyes, with a live walking preview
 - Chibi paper-doll characters in RPG Maker style (32x32, 3 frames x 4 directions): body, eyes, hair and every equipped item are separate layers, painted in their colour and stacked at runtime, so changing equipment changes how the character looks to everyone on the map
 - Equipment panel (I): click an item to wear it or take it off. Items are plain JSON in `data/items.json`, sent by the server at login; new characters get the ones marked `starter`
-- Access levels: the first account created on a server is admin and can edit maps (F1) and use `/item <id>`, `/ir <mapa> [x y]`, `/trazer <nome>`, `/novomapa <largura> <altura> [nome]` and `/mapa` (nome, pvp, seguro, spawn, musica, link cima|baixo|esquerda|direita <id>); everyone has `/online`, `/mapas` and `/itens`
+- Access levels: the first account created on a server is admin and can edit maps (F1) and use `/item <id>`, `/ir <mapa> [x y]`, `/trazer <nome>`, `/novomapa <largura> <altura> [nome]` `/mapa` (nome, pvp, seguro, spawn, musica, link cima|baixo|esquerda|direita <id>) and `/npc <id>|remover`; everyone has `/online`, `/mapas`, `/itens`, `/npcs` and `/status`
 - `--all-items` on the server gives new characters the whole wardrobe, for trying art out
 - LPC tiles with autotiling for terrain edges and corners; the starter map is a glade with paths, a pond and a pine forest
 - Night mode on by default: the world sits under a dark tint with a soft light around your character (F3 toggles it)
@@ -34,7 +34,10 @@ Soluna follows the shape of [Crystalshire](https://github.com/RobinPerris/Crysta
 - A world of linked maps: walking off an edge with a link carries on into the next map, warp tiles teleport, and each map has a name, a spawn point, PvP or safe, and music. With Pipoya's village, a forest north of it is generated as map 2 and linked to the village's north road
 - Tile types as in Crystalshire: blocked, warp, NPC-avoid and heal (heal acts once there are vitals)
 - Map cache: clients keep maps in `cache/` and download one again only when its revision changes
-- Fixed 20 Hz server tick for everything that happens over time (autosave today, NPCs and regeneration next)
+- Fixed 20 Hz server tick for everything that happens over time: NPC thinking, respawns, regeneration, autosave
+- Combat: HP, MP, level and experience (formulas in `Soluna.Shared/Combat.cs`), attack with Space or Ctrl at whatever is in front, damage from level plus the attack and defence of what you wear, floating numbers, health bars, a lunge on every swing, death and waking up in the village, regeneration out of combat and on heal tiles, PvP only on maps marked for it
+- NPCs from `data/npcs.json` (sprite sheet or paper-doll look, friendly, passive or aggressive, hp, attack, defence, experience, range, speed, respawn time) placed per map; the server walks, chases and attacks with them. With Pipoya's sprite pack the importer adds villagers, guards, animals, blobs, goblins, skeletons, ghosts and a lich, and the village and forest get populated on first run
+- HUD with health, mana and experience
 - In-game map editor (F1): tile palette, the map's layers (1 to 9), B cycles the tile types (warps lead where `/destino <mapa> <x> <y>` says), Ctrl+S saves to the server and everyone on the map reloads it
 - Tiled import: `dotnet run --project src/Soluna.Server -- import map.tmx <id> [name]` turns a Tiled map (CSV or base64, embedded or external tilesets under `assets/tilesets`) into a Soluna map, keeping every layer, moving layers named like `*_up`, `roof` or `tree` (or with an `above` property) over the characters, and working out collision from `collision` layers or, failing that, from water, buildings and trees
 - With the free [Pipoya RPG Tileset](https://pipoya.itch.io/pipoya-rpg-tileset-32x32) extracted into `assets/tilesets/private/`, the server imports Pipoya's sample village as the start map on first run (into `data/maps/private`, which git ignores, since the pack may not be redistributed)
@@ -63,6 +66,7 @@ Client options: `--host`, `--port`, `--user` and `--password` (log in on start),
 | --- | --- |
 | Arrows / WASD | Walk |
 | Enter | Chat |
+| Space / Ctrl | Attack |
 | I | Equipment |
 | F1 | Map editor |
 | F3 | Night on or off |
@@ -90,7 +94,7 @@ tools               asset download script
 
 ## Next
 
-Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, map warps and several maps, animated tiles, NPCs and combat, then the card duel system that the VB6 version started.
+Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, animated tiles, skills and spells, ranged attacks, then the card duel system that the VB6 version started.
 
 ## Credits
 

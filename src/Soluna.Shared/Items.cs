@@ -29,6 +29,10 @@ public sealed class ItemDef
 
     /// <summary>Given to every new character.</summary>
     public bool Starter { get; init; }
+
+    /// <summary>Added to the wearer's attack and defence while equipped.</summary>
+    public int Attack { get; init; }
+    public int Defense { get; init; }
 }
 
 /// <summary>Item ids worn in each <see cref="EquipSlot"/>; 0 means the slot is empty.</summary>

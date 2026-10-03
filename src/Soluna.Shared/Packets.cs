@@ -20,6 +20,9 @@ public enum PacketType : byte
     /// <summary>The client lacks this map (or has an old revision) and asks for it.</summary>
     MapRequest = 10,
 
+    /// <summary>Attack whatever is in front: direction.</summary>
+    Attack = 11,
+
     // Server -> Client
     LoginOk = 100,
     MapLoad = 101,
@@ -49,6 +52,27 @@ public enum PacketType : byte
 
     /// <summary>A map the player is on was saved: map id and its new revision.</summary>
     MapRevision = 113,
+
+    /// <summary>The NPC definitions as JSON, sent once after login.</summary>
+    NpcCatalog = 114,
+
+    /// <summary>An NPC is on the map: index, npc id, x, y, direction, hp, max hp.</summary>
+    NpcSpawned = 115,
+
+    /// <summary>index, x, y, direction.</summary>
+    NpcMoved = 116,
+
+    /// <summary>index (died or left).</summary>
+    NpcRemoved = 117,
+
+    /// <summary>Your own numbers: hp, max hp, mp, max mp, level, exp, exp to next level.</summary>
+    Vitals = 118,
+
+    /// <summary>A unit's health changed: kind, id, hp, max hp, change (negative for damage), for bars and floating numbers.</summary>
+    HpChanged = 119,
+
+    /// <summary>A unit swung: kind, id, direction, for the attack lunge.</summary>
+    Attacked = 120,
 }
 
 /// <summary>What a character slot shows on the select screen.</summary>
