@@ -30,7 +30,9 @@ internal sealed class MapStore
         }
         else
         {
-            map = StarterMap.Build(id);
+            // Real art when the LPC tiles are present, painted placeholders otherwise.
+            var lpc = File.Exists(Path.Combine(DataPaths.Assets, "tilesets", LpcStarterMap.ProbeFile));
+            map = lpc ? LpcStarterMap.Build(id) : StarterMap.Build(id);
             Save(map);
             Log.Info($"Created starter map at {path}.");
         }

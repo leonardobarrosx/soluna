@@ -14,14 +14,16 @@ internal sealed class Player
     public int X { get; set; }
     public int Y { get; set; }
     public Direction Dir { get; set; }
-    public byte Sprite { get; set; }
+    public required Appearance Look { get; init; }
+    public required Equipment Equipment { get; init; }
+    public required List<int> Inventory { get; init; }
 
     /// <summary>Milliseconds of walking this player may still spend; refills with real time.</summary>
     public float MoveBudgetMs { get; set; } = GameServer.MoveBudgetCapMs;
 
     public long LastBudgetCheckMs { get; set; }
 
-    public PlayerInfo Info => new(Id, Name, X, Y, Dir, Sprite);
+    public PlayerInfo Info => new(Id, Name, X, Y, Dir, Look, Equipment);
 }
 
 /// <summary>
@@ -31,7 +33,6 @@ internal sealed class Player
 internal sealed class GameServer
 {
     private const int SpawnX = 19, SpawnY = 14;
-    private const int SpriteCount = 6;
 
     // Each step costs a bit less than a walk so jitter never rejects an honest client,
     // and the cap stops a client from banking time and sprinting with it.
@@ -39,15 +40,17 @@ internal sealed class GameServer
     private const float StepCostMs = Constants.WalkTimeMs * 0.85f;
 
     private readonly MapStore _maps;
+    private readonly ItemCatalog _items;
     private readonly EventBasedNetListener _listener = new();
     private readonly NetManager _net;
     private readonly Dictionary<NetPeer, Player> _players = [];
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private int _nextId = 1;
 
-    public GameServer(MapStore maps)
+    public GameServer(MapStore maps, ItemCatalog items)
     {
         _maps = maps;
+        _items = items;
         _net = new NetManager(_listener) { AutoRecycle = true };
 
         _listener.ConnectionRequestEvent += request => request.AcceptIfKey(Constants.ConnectionKey);
@@ -82,6 +85,7 @@ internal sealed class GameServer
                 case PacketType.MoveRequest: HandleMove(player, reader); break;
                 case PacketType.ChatSend: HandleChat(player, reader); break;
                 case PacketType.MapSave: HandleMapSave(player, reader); break;
+                case PacketType.EquipToggle: HandleEquip(player, reader); break;
                 default: Log.Warn($"Unknown packet {type} from {peer}."); break;
             }
         }
@@ -97,9 +101,11 @@ internal sealed class GameServer
 
         var name = Clean(reader.GetString(), Constants.MaxNameLength);
         if (name.Length == 0) name = $"Viajante{_nextId}";
+        var look = Appearance.Read(reader);
+        if (!look.IsValid) look = Appearance.Random(Random.Shared);
 
         var map = _maps.Get(MapStore.StartMapId);
-        var (x, y) = FindSpawn(map);
+        var (x, y) = FindSpawn(map, PlayersOn(map.Id).ToList());
         var player = new Player
         {
             Peer = peer,
@@ -109,12 +115,17 @@ internal sealed class GameServer
             X = x,
             Y = y,
             Dir = Direction.Down,
-            Sprite = (byte)Random.Shared.Next(SpriteCount),
+            Look = look,
+            // No accounts yet: every new character gets the whole wardrobe to try on.
+            Equipment = _items.StarterEquipment(),
+            Inventory = _items.All.Select(i => i.Id).ToList(),
             LastBudgetCheckMs = _clock.ElapsedMilliseconds,
         };
 
         var ok = PacketIO.Begin(PacketType.LoginOk);
         ok.Put(player.Info);
+        ok.Put(player.Inventory.Count);
+        foreach (var item in player.Inventory) ok.Put(item);
         peer.Send(ok, DeliveryMethod.ReliableOrdered);
 
         SendMap(peer, map);
@@ -200,6 +211,20 @@ internal sealed class GameServer
         Log.Info($"{player.Name} saved map {map.Id}.");
     }
 
+    /// <summary>Wears an item from the inventory, or takes it off if it is already worn.</summary>
+    private void HandleEquip(Player player, NetDataReader reader)
+    {
+        var id = reader.GetInt();
+        if (!player.Inventory.Contains(id) || _items.Get(id) is not { } item) return;
+
+        player.Equipment[item.Slot] = player.Equipment[item.Slot] == id ? 0 : id;
+
+        var look = PacketIO.Begin(PacketType.PlayerLook);
+        look.Put(player.Id);
+        look.Put(player.Equipment);
+        Broadcast(player.MapId, look);
+    }
+
     private void OnDisconnected(NetPeer peer, DisconnectInfo info)
     {
         if (!_players.Remove(peer, out var player)) return;
@@ -221,13 +246,16 @@ internal sealed class GameServer
             && map.Attributes.Length == cells;
     }
 
-    private static (int x, int y) FindSpawn(MapData map)
+    /// <summary>The walkable tile nearest the spawn point that nobody is standing on.</summary>
+    private static (int x, int y) FindSpawn(MapData map, List<Player> others)
     {
-        for (var radius = 0; radius < 6; radius++)
+        for (var radius = 0; radius < 8; radius++)
+        for (var dy = -radius; dy <= radius; dy++)
+        for (var dx = -radius; dx <= radius; dx++)
         {
-            var x = SpawnX + Random.Shared.Next(-radius, radius + 1);
-            var y = SpawnY + Random.Shared.Next(-radius, radius + 1);
-            if (map.IsWalkable(x, y)) return (x, y);
+            if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
+            var (x, y) = (SpawnX + dx, SpawnY + dy);
+            if (map.IsWalkable(x, y) && !others.Any(p => p.X == x && p.Y == y)) return (x, y);
         }
         return (SpawnX, SpawnY);
     }

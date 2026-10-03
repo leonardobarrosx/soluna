@@ -9,6 +9,7 @@ public enum PacketType : byte
     MoveRequest = 2,
     ChatSend = 3,
     MapSave = 4,
+    EquipToggle = 5,
 
     // Server -> Client
     LoginOk = 100,
@@ -18,9 +19,10 @@ public enum PacketType : byte
     PlayerMoved = 104,
     PlayerPosition = 105,
     ChatMessage = 106,
+    PlayerLook = 107,
 }
 
-public sealed record PlayerInfo(int Id, string Name, int X, int Y, Direction Dir, byte Sprite);
+public sealed record PlayerInfo(int Id, string Name, int X, int Y, Direction Dir, Appearance Look, Equipment Equipment);
 
 public static class PacketIO
 {
@@ -38,11 +40,24 @@ public static class PacketIO
         w.Put(p.X);
         w.Put(p.Y);
         w.Put((byte)p.Dir);
-        w.Put(p.Sprite);
+        p.Look.Write(w);
+        w.Put(p.Equipment);
     }
 
     public static PlayerInfo GetPlayerInfo(this NetDataReader r) =>
-        new(r.GetInt(), r.GetString(), r.GetInt(), r.GetInt(), (Direction)r.GetByte(), r.GetByte());
+        new(r.GetInt(), r.GetString(), r.GetInt(), r.GetInt(), (Direction)r.GetByte(), Appearance.Read(r), r.GetEquipment());
+
+    public static void Put(this NetDataWriter w, Equipment equipment)
+    {
+        foreach (var item in equipment.Items) w.Put(item);
+    }
+
+    public static Equipment GetEquipment(this NetDataReader r)
+    {
+        var equipment = new Equipment();
+        for (var slot = 0; slot < Equipment.SlotCount; slot++) equipment[(EquipSlot)slot] = r.GetInt();
+        return equipment;
+    }
 
     public static void PutBlob(this NetDataWriter w, byte[] data)
     {

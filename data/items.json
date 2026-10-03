@@ -1,0 +1,18 @@
+[
+  { "id": 1, "name": "Camisa de linho", "slot": "Torso", "sheet": "torso_clothes_shortsleeve", "colors": ["white"] },
+  { "id": 2, "name": "Camisa de lã azul", "slot": "Torso", "sheet": "torso_clothes_longsleeve", "colors": ["navy"] },
+  { "id": 3, "name": "Blusa lavanda", "slot": "Torso", "sheet": "torso_clothes_longsleeve", "colors": ["lavender"] },
+  { "id": 4, "name": "Colete de couro", "slot": "Torso", "sheet": "torso_armour_leather", "colors": ["leather", "steel"] },
+  { "id": 5, "name": "Peitoral de aço", "slot": "Torso", "sheet": "torso_armour_plate", "colors": ["steel"] },
+  { "id": 6, "name": "Peitoral dourado", "slot": "Torso", "sheet": "torso_armour_plate", "colors": ["gold"] },
+
+  { "id": 20, "name": "Calça de viagem", "slot": "Legs", "sheet": "legs_pants", "colors": ["brown"] },
+  { "id": 21, "name": "Calça escura", "slot": "Legs", "sheet": "legs_pants", "colors": ["charcoal"] },
+  { "id": 22, "name": "Saia vinho", "slot": "Legs", "sheet": "legs_skirts_plain", "colors": ["maroon"] },
+
+  { "id": 40, "name": "Sapatos simples", "slot": "Feet", "sheet": "feet_shoes_basic", "colors": ["black"] },
+  { "id": 41, "name": "Botas de couro", "slot": "Feet", "sheet": "feet_boots_basic", "colors": ["leather"] },
+
+  { "id": 60, "name": "Capuz verde", "slot": "Head", "sheet": "hat_hood_cloth", "colors": ["forest"] },
+  { "id": 61, "name": "Chapéu de mago", "slot": "Head", "sheet": "hat_magic_wizard", "colors": [] }
+]

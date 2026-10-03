@@ -13,7 +13,11 @@ namespace Soluna.Client;
 /// <param name="Screenshot">Debug: save a PNG of the screen to this path a few seconds after entering, then quit.</param>
 /// <param name="Walk">Debug: wander around on its own, for testing with several clients.</param>
 /// <param name="Editor">Open the map editor as soon as the map arrives.</param>
-internal sealed record ClientOptions(string Host, int Port, string Name, string? Screenshot = null, bool Walk = false, bool Editor = false);
+/// <param name="SkipCreation">Skip character creation with a random look (implied by Walk).</param>
+/// <param name="Inventory">Open the equipment panel on entry.</param>
+internal sealed record ClientOptions(
+    string Host, int Port, string Name, string? Screenshot = null, bool Walk = false, bool Editor = false,
+    bool SkipCreation = false, bool Inventory = false);
 
 internal sealed class SolunaGame : Game
 {
@@ -30,12 +34,18 @@ internal sealed class SolunaGame : Game
     private readonly Input _input = new();
     private readonly ChatBox _chat = new();
     private readonly Dictionary<int, Character> _others = [];
+    private readonly ItemCatalog _items = ItemCatalog.Load();
 
     private SpriteBatch _batch = null!;
     private Textures _textures = null!;
     private Fonts _fonts = null!;
     private MapRenderer _renderer = null!;
     private MapEditor _editor = null!;
+    private Sprites _sprites = null!;
+    private CreationScreen? _creation;
+    private InventoryPanel _inventory = null!;
+    private Appearance? _look;
+    private string _name;
     private Texture2D _lightMask = null!;
 
     private MapData? _map;
@@ -45,12 +55,14 @@ internal sealed class SolunaGame : Game
     private string _status = "";
     private bool _night = true;
     private float _inWorldSeconds;
+    private float _runSeconds;
     private Direction? _wanderDir;
     private float _wanderSeconds;
 
     public SolunaGame(ClientOptions options)
     {
         _options = options;
+        _name = options.Name;
         _graphics = new GraphicsDeviceManager(this)
         {
             PreferredBackBufferWidth = 1280,
@@ -60,7 +72,11 @@ internal sealed class SolunaGame : Game
         IsMouseVisible = true;
         Window.AllowUserResizing = true;
         Window.Title = Constants.GameName;
-        Window.TextInput += (_, e) => _chat.OnTextInput(e.Character);
+        Window.TextInput += (_, e) =>
+        {
+            if (_creation != null) _creation.OnTextInput(e.Character);
+            else _chat.OnTextInput(e.Character);
+        };
         Window.ClientSizeChanged += (_, _) =>
         {
             var bounds = Window.ClientBounds;
@@ -80,10 +96,21 @@ internal sealed class SolunaGame : Game
         _batch = new SpriteBatch(GraphicsDevice);
         _textures = new Textures(GraphicsDevice);
         _fonts = new Fonts();
-        _renderer = new MapRenderer(_textures);
+        _sprites = new Sprites(new CharacterSprites(GraphicsDevice, _items), _textures);
+        _renderer = new MapRenderer(_textures, _sprites);
         _editor = new MapEditor(_textures, _renderer);
+        _inventory = new InventoryPanel(_items, _sprites);
         _lightMask = PlaceholderArt.LightMask(GraphicsDevice, MaskInner, MaskOuter);
-        Connect();
+
+        if (_options.SkipCreation || _options.Walk)
+        {
+            _look = Appearance.Random(Random.Shared);
+            Connect();
+        }
+        else
+        {
+            _creation = new CreationScreen(_sprites, _items, _options.Name);
+        }
     }
 
     protected override void UnloadContent() => _connection.Stop();
@@ -104,7 +131,8 @@ internal sealed class SolunaGame : Game
         _connecting = false;
         _status = "Entrando...";
         var login = PacketIO.Begin(PacketType.Login);
-        login.Put(_options.Name);
+        login.Put(_name);
+        _look!.Write(login);
         _connection.Send(login);
     }
 
@@ -126,8 +154,12 @@ internal sealed class SolunaGame : Game
             case PacketType.LoginOk:
             {
                 var me = r.GetPlayerInfo();
-                _local = new Character(me.Id, me.Name, me.Sprite);
+                _local = new Character(me.Id, me.Name, me.Look, me.Equipment);
                 _local.Place(me.X, me.Y, me.Dir);
+                _inventory.Inventory.Clear();
+                var count = r.GetInt();
+                for (var i = 0; i < count; i++) _inventory.Inventory.Add(r.GetInt());
+                _inventory.Open = _options.Inventory;
                 Window.Title = $"{Constants.GameName} · {me.Name}";
                 break;
             }
@@ -141,7 +173,7 @@ internal sealed class SolunaGame : Game
             {
                 var p = r.GetPlayerInfo();
                 if (p.Id == _local?.Id) break;
-                var character = new Character(p.Id, p.Name, p.Sprite);
+                var character = new Character(p.Id, p.Name, p.Look, p.Equipment);
                 character.Place(p.X, p.Y, p.Dir);
                 _others[p.Id] = character;
                 break;
@@ -169,6 +201,15 @@ internal sealed class SolunaGame : Game
             case PacketType.ChatMessage:
                 _chat.Add(r.GetString(), r.GetString());
                 break;
+
+            case PacketType.PlayerLook:
+            {
+                var id = r.GetInt();
+                var equipment = r.GetEquipment();
+                if (id == _local?.Id) _local.Equipment = equipment;
+                else if (_others.TryGetValue(id, out var other)) other.Equipment = equipment;
+                break;
+            }
         }
     }
 
@@ -177,7 +218,23 @@ internal sealed class SolunaGame : Game
     protected override void Update(GameTime gameTime)
     {
         var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
-        _input.Update(IsActive);
+        _runSeconds += dt;
+        _input.Update(IsActive && _options.Screenshot == null);
+        _sprites.Trim();
+
+        if (_creation != null)
+        {
+            if (_creation.Update(_input, Screen, dt))
+            {
+                _look = _creation.Look;
+                _name = _creation.Name;
+                _creation = null;
+                Connect();
+            }
+            base.Update(gameTime);
+            return;
+        }
+
         _connection.Poll();
         _camera.Viewport = Screen;
 
@@ -196,6 +253,12 @@ internal sealed class SolunaGame : Game
             foreach (var other in _others.Values) other.Update(dt * 1000);
 
             if (_editor.Update(_input, _map, _camera, Screen) && _editor.Dirty) SaveMap();
+            if (_inventory.Update(_input, Screen) is { } clicked)
+            {
+                var w = PacketIO.Begin(PacketType.EquipToggle);
+                w.Put(clicked);
+                _connection.Send(w);
+            }
             _camera.Follow(_local.Position + new Vector2(Constants.TileSize / 2f), new Vector2(_map.Width, _map.Height) * Constants.TileSize);
         }
 
@@ -221,10 +284,21 @@ internal sealed class SolunaGame : Game
         }
 
         if (_input.Pressed(Keys.Enter)) _chat.Open();
-        if (_input.Pressed(Keys.F1) && _map != null) _editor.Toggle(_map);
+        if (_input.Pressed(Keys.F1) && _map != null)
+        {
+            _editor.Toggle(_map);
+            _inventory.Open = false;
+        }
+        if (_input.Pressed(Keys.I) && _local != null)
+        {
+            _inventory.Open = !_inventory.Open;
+            if (_inventory.Open && _editor.Active && _map != null) _editor.Toggle(_map);
+        }
         if (_input.Pressed(Keys.F3)) _night = !_night;
 
-        var overPanel = _editor.Active && _editor.PanelRect(Screen).Contains(_input.Mouse.ToPoint());
+        var mouse = _input.Mouse.ToPoint();
+        var overPanel = (_editor.Active && _editor.PanelRect(Screen).Contains(mouse))
+                        || (_inventory.Open && _inventory.PanelRect(Screen).Contains(mouse));
         var zoom = (_input.Pressed(Keys.OemPlus) || _input.Pressed(Keys.Add) ? 1 : 0)
                    - (_input.Pressed(Keys.OemMinus) || _input.Pressed(Keys.Subtract) ? 1 : 0)
                    + (overPanel ? 0 : _input.Wheel);
@@ -296,12 +370,17 @@ internal sealed class SolunaGame : Game
         if (_map != null && _local != null) DrawWorld(_map, _local);
 
         _batch.Begin(samplerState: SamplerState.PointClamp);
-        if (_map != null && _local != null)
+        if (_creation != null)
+        {
+            _creation.Draw(_batch, _textures.Pixel, _fonts, Screen);
+        }
+        else if (_map != null && _local != null)
         {
             DrawNames();
             DrawStatusBar(_map);
             _chat.Draw(_batch, _textures.Pixel, _fonts, Screen);
             _editor.DrawPanel(_batch, _fonts, _map, Screen);
+            _inventory.Draw(_batch, _textures.Pixel, _fonts, _local, Screen);
         }
         else
         {
@@ -311,7 +390,8 @@ internal sealed class SolunaGame : Game
 
         base.Draw(gameTime);
 
-        if (_options.Screenshot != null && _inWorldSeconds > 4) SaveScreenshot(_options.Screenshot);
+        var shotReady = _creation != null ? _runSeconds > 3 : _inWorldSeconds > 4;
+        if (_options.Screenshot != null && shotReady) SaveScreenshot(_options.Screenshot);
     }
 
     private void SaveScreenshot(string path)
@@ -364,8 +444,9 @@ internal sealed class SolunaGame : Game
     {
         foreach (var character in _others.Values.Append(_local!))
         {
-            var sheet = _textures.Character(character.Sprite);
-            var head = character.Position + new Vector2(Constants.TileSize / 2f, Constants.TileSize - sheet.Height / 4f - 3);
+            var sheet = _sprites.SheetFor(character.Look, character.Equipment);
+            var top = character.Position + SheetLayout.Offset(sheet) + new Vector2(0, SheetLayout.HeadTop(sheet));
+            var head = new Vector2(character.Position.X + Constants.TileSize / 2f, top.Y - 3);
             var color = character == _local ? Theme.Sol : Theme.Text;
             Ui.Tag(_batch, _textures.Pixel, _fonts.Small, character.Name, _camera.WorldToScreen(head) - new Vector2(0, 8), color);
         }
@@ -384,7 +465,8 @@ internal sealed class SolunaGame : Game
         Ui.Text(_batch, _fonts.Body, info, new Vector2(bar.X + 28 + _fonts.Title.MeasureString(Constants.GameName).X, bar.Y + 7), Theme.TextDim);
 
         if (_editor.Active) return;
-        const string hint = "Enter chat  ·  F1 editor  ·  F3 noite  ·  +/- zoom";
+        if (_inventory.Open) return;
+        const string hint = "Enter chat  ·  I equipamento  ·  F1 editor  ·  F3 noite  ·  +/- zoom";
         var size = _fonts.Small.MeasureString(hint);
         var screen = Screen;
         Ui.Text(_batch, _fonts.Small, hint, new Vector2(screen.X - size.X - 14, screen.Y - size.Y - 12), Theme.TextDim);

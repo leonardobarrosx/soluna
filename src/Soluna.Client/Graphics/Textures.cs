@@ -37,15 +37,17 @@ internal sealed class Textures(GraphicsDevice device)
         return texture;
     }
 
-    /// <summary>Tilesets the user dropped into assets/tilesets, by file name.</summary>
+    /// <summary>Every PNG under assets/tilesets, as a path relative to it with forward slashes.</summary>
     public static IEnumerable<string> AvailableTilesets() =>
         Directory.Exists(TilesetFolder)
-            ? Directory.EnumerateFiles(TilesetFolder, "*.png").Select(Path.GetFileName).OfType<string>().Order()
+            ? Directory.EnumerateFiles(TilesetFolder, "*.png", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(TilesetFolder, f).Replace('\\', '/'))
+                .Order()
             : [];
 
     /// <summary>
-    /// Character sheet for a sprite number: assets/characters/{n}.png when present
-    /// (3x4 frames, RPG Maker layout), otherwise a painted placeholder.
+    /// Fallback character sheet when the LPC layers are missing: assets/characters/{n}.png
+    /// (3x4 frames, RPG Maker layout) if present, otherwise a painted placeholder.
     /// </summary>
     public Texture2D Character(int sprite)
     {

@@ -14,19 +14,23 @@ namespace Soluna.Client.UI;
 internal sealed class MapEditor(Textures textures, MapRenderer renderer)
 {
     private const int S = Constants.TileSize;
-    private const int PaletteWidth = 8 * S;
-    private const int PanelWidth = PaletteWidth + 24;
+    private const int MinPaletteWidth = 8 * S, MaxPaletteWidth = 12 * S;
     private const int HeaderHeight = 92;
     private const int FooterHeight = 70;
 
+    // Tilesets offered in the palette: the map's own plus everything in assets/tilesets.
+    // A tileset joins the map's list only once something is painted with it.
+    private readonly List<string> _palette = [];
     private int _tileset;
+    private int _paletteWidth = MinPaletteWidth;
+    private string _selectedSet = "";
+    private int _selectedIndex;
     private int _scroll;
     private Point? _hover;
 
     public bool Active { get; private set; }
     public MapLayer Layer { get; private set; } = MapLayer.Ground;
     public bool AttributeMode { get; private set; }
-    public int Selected { get; private set; } = TileRef.Make(0, 0);
     public bool Dirty { get; set; }
 
     public void Toggle(MapData map)
@@ -34,15 +38,22 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
         Active = !Active;
         if (!Active) return;
 
-        // Offer every PNG the user dropped into assets/tilesets alongside the ones the map already uses.
-        foreach (var name in Textures.AvailableTilesets())
-        {
-            if (!map.Tilesets.Contains(name)) map.Tilesets.Add(name);
-        }
-        _tileset = Math.Clamp(_tileset, 0, map.Tilesets.Count - 1);
+        _palette.Clear();
+        _palette.AddRange(map.Tilesets);
+        _palette.AddRange(Textures.AvailableTilesets().Where(name => !map.Tilesets.Contains(name)));
+        _tileset = Math.Clamp(_tileset, 0, Math.Max(0, _palette.Count - 1));
+        if (_selectedSet.Length == 0 && _palette.Count > 0) _selectedSet = _palette[0];
+        FitPalette();
     }
 
-    public Rectangle PanelRect(Point screen) => new(screen.X - PanelWidth - 12, 52, PanelWidth, screen.Y - 64);
+    /// <summary>Widens the panel for wide tilesets, up to 12 tiles; anything wider is cut off.</summary>
+    private void FitPalette()
+    {
+        var width = _palette.Count > 0 ? textures.Tileset(_palette[_tileset]).Width : MinPaletteWidth;
+        _paletteWidth = Math.Clamp(width, MinPaletteWidth, MaxPaletteWidth);
+    }
+
+    public Rectangle PanelRect(Point screen) => new(screen.X - _paletteWidth - 36, 52, _paletteWidth + 24, screen.Y - 64);
 
     /// <summary>Handles editor input. Returns true when the save shortcut was pressed.</summary>
     public bool Update(Input input, MapData map, Camera camera, Point screen)
@@ -58,10 +69,11 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
             }
         }
         if (input.Pressed(Keys.B)) AttributeMode = !AttributeMode;
-        if (input.Pressed(Keys.Tab) && map.Tilesets.Count > 0)
+        if (input.Pressed(Keys.Tab) && _palette.Count > 0)
         {
-            _tileset = (_tileset + 1) % map.Tilesets.Count;
+            _tileset = (_tileset + (input.Down(Keys.LeftShift) ? _palette.Count - 1 : 1)) % _palette.Count;
             _scroll = 0;
+            FitPalette();
         }
 
         var panel = PanelRect(screen);
@@ -69,9 +81,9 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
         var mouse = input.Mouse.ToPoint();
         _hover = null;
 
-        if (panel.Contains(mouse))
+        if (panel.Contains(mouse) && _palette.Count > 0)
         {
-            var texture = textures.Tileset(map.Tilesets[_tileset]);
+            var texture = textures.Tileset(_palette[_tileset]);
             var maxScroll = Math.Max(0, texture.Height - palette.Height);
             _scroll = Math.Clamp(_scroll - input.Wheel * S, 0, maxScroll);
 
@@ -82,12 +94,13 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
                 var columns = Math.Max(1, texture.Width / S);
                 if (col < columns && row < texture.Height / S)
                 {
-                    Selected = TileRef.Make(_tileset, row * columns + col);
+                    _selectedSet = _palette[_tileset];
+                    _selectedIndex = row * columns + col;
                     AttributeMode = false;
                 }
             }
         }
-        else
+        else if (!panel.Contains(mouse))
         {
             var world = camera.ScreenToWorld(input.Mouse);
             var tx = (int)MathF.Floor(world.X / S);
@@ -113,11 +126,20 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
         }
         else
         {
-            var value = erase ? TileRef.Empty : Selected;
+            var value = erase ? TileRef.Empty : TileRef.Make(TilesetIndex(map, _selectedSet), _selectedIndex);
             if (map.GetTile(Layer, x, y) == value) return;
             map.SetTile(Layer, x, y, value);
         }
         Dirty = true;
+    }
+
+    /// <summary>The map's index for a tileset, adding it to the map the first time it is used.</summary>
+    private static int TilesetIndex(MapData map, string name)
+    {
+        var index = map.Tilesets.IndexOf(name);
+        if (index >= 0) return index;
+        map.Tilesets.Add(name);
+        return map.Tilesets.Count - 1;
     }
 
     /// <summary>Grid, blocked tiles and the hover preview, drawn in world space.</summary>
@@ -142,7 +164,8 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
 
         if (_hover is not { } h) return;
         var rect = new Rectangle(h.X * S, h.Y * S, S, S);
-        if (!AttributeMode) renderer.DrawTile(batch, map, Selected, rect.Location.ToVector2(), Color.White * 0.6f);
+        if (!AttributeMode && _selectedSet.Length > 0)
+            renderer.DrawTile(batch, textures.Tileset(_selectedSet), _selectedIndex, rect.Location.ToVector2(), Color.White * 0.6f);
         var outline = AttributeMode ? Theme.Danger : Theme.Luna;
         batch.Draw(pixel, new Vector2(rect.X, rect.Y), null, outline, 0, Vector2.Zero, new Vector2(S, line * 2), SpriteEffects.None, 0);
         batch.Draw(pixel, new Vector2(rect.X, rect.Bottom - line * 2), null, outline, 0, Vector2.Zero, new Vector2(S, line * 2), SpriteEffects.None, 0);
@@ -166,23 +189,23 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
         var mode = AttributeMode ? "Atributo: Bloqueado" : $"Camada: {Layer}";
         Ui.Text(batch, fonts.Body, mode, new Vector2(x, y), AttributeMode ? Theme.Danger : Theme.Sol);
         y += 20;
-        var setName = map.Tilesets.Count > 0 ? map.Tilesets[_tileset] : "-";
-        Ui.Text(batch, fonts.Small, $"Tileset {_tileset + 1}/{map.Tilesets.Count}: {setName}", new Vector2(x, y), Theme.TextDim);
+        var setName = _palette.Count > 0 ? _palette[_tileset] : "-";
+        Ui.Text(batch, fonts.Small, $"Tileset {_tileset + 1}/{_palette.Count}: {setName}", new Vector2(x, y), Theme.TextDim);
 
         var palette = PaletteRect(panel);
         batch.Draw(pixel, palette, Theme.Background);
-        if (map.Tilesets.Count > 0)
+        if (_palette.Count > 0)
         {
-            var texture = textures.Tileset(map.Tilesets[_tileset]);
+            var texture = textures.Tileset(_palette[_tileset]);
             var width = Math.Min(texture.Width, palette.Width);
             var height = Math.Min(texture.Height - _scroll, palette.Height);
             if (height > 0)
                 batch.Draw(texture, new Rectangle(palette.X, palette.Y, width, height), new Rectangle(0, _scroll, width, height), Color.White);
 
-            if (!AttributeMode && TileRef.Tileset(Selected) == _tileset)
+            if (!AttributeMode && _selectedSet == _palette[_tileset])
             {
                 var columns = Math.Max(1, texture.Width / S);
-                var index = TileRef.Index(Selected);
+                var index = _selectedIndex;
                 var sel = new Rectangle(palette.X + index % columns * S, palette.Y + index / columns * S - _scroll, S, S);
                 if (palette.Contains(sel.Center)) Ui.Outline(batch, pixel, sel, Theme.Sol, 2);
             }
@@ -192,10 +215,10 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
         var help = Dirty ? "Alterações não salvas · Ctrl+S salva" : "Mapa salvo";
         var fy = panel.Bottom - FooterHeight + 8;
         Ui.Text(batch, fonts.Small, help, new Vector2(x, fy), Dirty ? Theme.Sol : Theme.System);
-        Ui.Text(batch, fonts.Small, "1-5 camada · B bloqueio · Tab tileset", new Vector2(x, fy + 18), Theme.TextDim);
+        Ui.Text(batch, fonts.Small, "1-5 camada · B bloqueio · Tab/Shift+Tab tileset", new Vector2(x, fy + 18), Theme.TextDim);
         Ui.Text(batch, fonts.Small, "Esq pinta · Dir apaga · Roda rola", new Vector2(x, fy + 36), Theme.TextDim);
     }
 
-    private static Rectangle PaletteRect(Rectangle panel) =>
-        new(panel.X + 12, panel.Y + HeaderHeight, PaletteWidth, panel.Height - HeaderHeight - FooterHeight);
+    private Rectangle PaletteRect(Rectangle panel) =>
+        new(panel.X + 12, panel.Y + HeaderHeight, _paletteWidth, panel.Height - HeaderHeight - FooterHeight);
 }

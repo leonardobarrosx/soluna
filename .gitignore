@@ -4,6 +4,5 @@ obj/
 .idea/
 *.user
 
-# Art packs are licensed to use, not to redistribute.
-assets/*
-!assets/README.md
+# Art you are allowed to use but not to redistribute.
+assets/**/private/

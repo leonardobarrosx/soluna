@@ -5,7 +5,7 @@ using Soluna.Shared;
 
 namespace Soluna.Client.World;
 
-internal sealed class MapRenderer(Textures textures)
+internal sealed class MapRenderer(Textures textures, Sprites sprites)
 {
     private const int S = Constants.TileSize;
 
@@ -30,9 +30,12 @@ internal sealed class MapRenderer(Textures textures)
         var set = TileRef.Tileset(tile);
         if (set < 0 || set >= map.Tilesets.Count) return;
 
-        var texture = textures.Tileset(map.Tilesets[set]);
+        DrawTile(batch, textures.Tileset(map.Tilesets[set]), TileRef.Index(tile), position, tint);
+    }
+
+    public void DrawTile(SpriteBatch batch, Texture2D texture, int index, Vector2 position, Color tint)
+    {
         var columns = Math.Max(1, texture.Width / S);
-        var index = TileRef.Index(tile);
         var source = new Rectangle(index % columns * S, index / columns * S, S, S);
         if (source.Bottom > texture.Height) source = new Rectangle(0, 0, Math.Min(S, texture.Width), Math.Min(S, texture.Height));
         batch.Draw(texture, position, source, tint);
@@ -40,14 +43,9 @@ internal sealed class MapRenderer(Textures textures)
 
     public void DrawCharacter(SpriteBatch batch, Character character)
     {
-        var sheet = textures.Character(character.Sprite);
-        var fw = sheet.Width / 3;
-        var fh = sheet.Height / 4;
-        var source = new Rectangle(character.Frame * fw, (int)character.Dir * fh, fw, fh);
-
-        // Feet on the tile: wide or tall sheets are centered horizontally and grow upwards.
-        var pos = character.Position + new Vector2((S - fw) / 2f, S - fh);
-        batch.Draw(sheet, pos, source, Color.White);
+        var sheet = sprites.SheetFor(character.Look, character.Equipment);
+        var frame = SheetLayout.Frame(sheet, character.Dir, character.Moving, character.Progress, character.LeftFoot);
+        batch.Draw(sheet, character.Position + SheetLayout.Offset(sheet), frame, Color.White);
     }
 
     public static (int x0, int y0, int x1, int y1) VisibleTiles(MapData map, Camera camera)

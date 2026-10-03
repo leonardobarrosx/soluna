@@ -4,7 +4,9 @@ using Soluna.Shared;
 var port = args.Length > 0 && int.TryParse(args[0], out var p) ? p : Constants.DefaultPort;
 
 var maps = new MapStore(Path.Combine(DataPaths.Data, "maps"));
-var server = new GameServer(maps);
+var items = ItemCatalog.Load();
+Log.Info($"Loaded {items.All.Count()} items.");
+var server = new GameServer(maps, items);
 
 var running = true;
 Console.CancelKeyPress += (_, e) =>
