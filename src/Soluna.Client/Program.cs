@@ -13,6 +13,7 @@ var play = args.Contains("--play") || walk;
 var editor = args.Contains("--editor");
 var inventory = args.Contains("--inventory");
 var creation = args.Contains("--creation");
+var gameEditorTab = args.Contains("--game-editor-npcs") ? "npcs" : args.Contains("--game-editor") ? "items" : null;
 
 for (var i = 0; i < args.Length - 1; i++)
 {
@@ -36,5 +37,5 @@ if (walk && user == null && name != null)
 }
 
 using var game = new SolunaGame(new ClientOptions(
-    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory, creation));
+    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory, creation, gameEditorTab));
 game.Run();

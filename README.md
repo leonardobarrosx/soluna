@@ -32,6 +32,7 @@ Soluna follows the shape of [Crystalshire](https://github.com/RobinPerris/Crysta
 - Night mode on by default: the world sits under a dark tint with a soft light around your character (F3 toggles it)
 - Chat, join and leave messages, player names over heads
 - A world of linked maps: walking off an edge with a link carries on into the next map, warp tiles teleport, and each map has a name, a spawn point, PvP or safe, and music. With Pipoya's village, a forest north of it is generated as map 2 and linked to the village's north road
+- Game editor (F2, admins): items (name, slot, look picked from the art set with a preview on your own character, colour, attack, defence, price, starter) and NPCs (name, sprite picked from the game's sheets with an animated preview, behaviour, health, attack, defence, experience, range, speeds, respawn). Saving sends them to the server, which validates them, writes the game's files and pushes them to everyone online; NPCs already on the maps take the new values at once
 - Tile types as in Crystalshire: blocked, warp, NPC-avoid and heal (heal acts once there are vitals)
 - Map cache: clients keep maps in `cache/` and download one again only when its revision changes
 - Fixed 20 Hz server tick for everything that happens over time: NPC thinking, respawns, regeneration, autosave
@@ -73,6 +74,7 @@ Client options: `--host`, `--port`, `--user` and `--password` (log in on start),
 | Space / Ctrl | Attack |
 | I | Equipment |
 | F1 | Map editor |
+| F2 | Game editor (items, NPCs) |
 | F3 | Night on or off |
 | + / - or mouse wheel | Zoom |
 
@@ -98,7 +100,7 @@ cache/<name>             maps the client keeps between sessions
 
 ## Next
 
-Everything a game creator does is meant to happen inside the engine, in the in-game editors (admin only), never by editing files or running scripts. Next, in order: the editor foundation (widgets, and a protocol for saving content on the server and pushing it live to everyone online); editors for items with prices, NPCs, map properties with NPC and warp placement, and importing tilesets and sprites through the interface with the server distributing them to clients; a launcher in the client to create a game or pick one and host it locally; editors for character art and animations. Then, each with its editor from the start: Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, animated tiles, skills and spells, ranged attacks, then the card duel system that the VB6 version started.
+Everything a game creator does is meant to happen inside the engine, in the in-game editors (admin only), never by editing files or running scripts. Done: projects, the editor foundation (widgets, saving content on the server and pushing it live) and the item and NPC editors. Next, in order: editors for map properties with NPC and warp placement, and importing tilesets and sprites through the interface with the server distributing them to clients; a launcher in the client to create a game or pick one and host it locally; editors for character art and animations. Then, each with its editor from the start: the economy (inventory slots and stacks, potions, drops, gold, shops), encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, animated tiles, skills and spells, ranged attacks, then the card duel system that the VB6 version started.
 
 ## Credits
 

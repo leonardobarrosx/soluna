@@ -42,30 +42,32 @@ public enum NpcBehaviour : byte
 /// <summary>An NPC from data/npcs.json (or data/private/npcs.json alongside a private art set).</summary>
 public sealed class NpcDef
 {
-    public int Id { get; init; }
-    public string Name { get; init; } = "";
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
 
     /// <summary>A 3x4 RPG Maker sheet, as a path under assets/. Used when <see cref="Look"/> is not set.</summary>
-    public string Sprite { get; init; } = "";
+    public string Sprite { get; set; } = "";
 
     /// <summary>A paper-doll look instead of a sprite sheet: appearance plus item ids worn.</summary>
-    public Appearance? Look { get; init; }
-    public int[] Wears { get; init; } = [];
+    public Appearance? Look { get; set; }
+    public int[] Wears { get; set; } = [];
 
-    public NpcBehaviour Behaviour { get; init; }
-    public int Hp { get; init; } = 20;
-    public int Attack { get; init; } = 4;
-    public int Defense { get; init; }
-    public int Exp { get; init; }
+    public NpcBehaviour Behaviour { get; set; }
+    public int Hp { get; set; } = 20;
+    public int Attack { get; set; } = 4;
+    public int Defense { get; set; }
+    public int Exp { get; set; }
 
     /// <summary>Tiles within which an aggressive NPC notices a player.</summary>
-    public int Range { get; init; } = 5;
+    public int Range { get; set; } = 5;
 
-    public int MoveMs { get; init; } = 600;
-    public int AttackMs { get; init; } = 1200;
-    public int RespawnSeconds { get; init; } = 20;
+    public int MoveMs { get; set; } = 600;
+    public int AttackMs { get; set; } = 1200;
+    public int RespawnSeconds { get; set; } = 20;
 
     public bool Hostile => Behaviour != NpcBehaviour.Friendly;
+
+    public NpcDef Clone() => (NpcDef)MemberwiseClone();
 }
 
 /// <summary>Where an NPC appears on a map; it respawns there after dying.</summary>
@@ -88,15 +90,23 @@ public sealed class NpcCatalog
 
     public string Json { get; private set; } = "[]";
 
+    /// <summary>The file the server reads and the editor saves into.</summary>
+    public string? SourcePath { get; private set; }
+
     /// <summary>The server's copy: data/private/npcs.json when there is one, otherwise data/npcs.json.</summary>
     public static NpcCatalog Load()
     {
-        var catalog = new NpcCatalog();
         var privateNpcs = Path.Combine(DataPaths.Data, "private", "npcs.json");
         var path = File.Exists(privateNpcs) ? privateNpcs : Path.Combine(DataPaths.Data, "npcs.json");
+        var catalog = new NpcCatalog { SourcePath = path };
         if (File.Exists(path)) catalog.Replace(File.ReadAllText(path));
         return catalog;
     }
+
+    public static string ToJson(IEnumerable<NpcDef> npcs) => ContentJson.Array(npcs);
+
+    public static List<NpcDef> Parse(string json) =>
+        JsonSerializer.Deserialize<List<NpcDef>>(json, JsonOptions) ?? throw new InvalidDataException("Empty NPC list.");
 
     public void Replace(string json)
     {

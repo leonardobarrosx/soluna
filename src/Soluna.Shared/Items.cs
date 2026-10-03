@@ -22,18 +22,23 @@ public enum EquipSlot : byte
 /// </summary>
 public sealed class ItemDef
 {
-    public int Id { get; init; }
-    public string Name { get; init; } = "";
-    public EquipSlot Slot { get; init; }
-    public string Sheet { get; init; } = "";
-    public string[] Colors { get; init; } = [];
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public EquipSlot Slot { get; set; }
+    public string Sheet { get; set; } = "";
+    public string[] Colors { get; set; } = [];
 
     /// <summary>Given to every new character.</summary>
-    public bool Starter { get; init; }
+    public bool Starter { get; set; }
 
     /// <summary>Added to the wearer's attack and defence while equipped.</summary>
-    public int Attack { get; init; }
-    public int Defense { get; init; }
+    public int Attack { get; set; }
+    public int Defense { get; set; }
+
+    /// <summary>What a shop asks for it, in the game's currency.</summary>
+    public int Price { get; set; }
+
+    public ItemDef Clone() => (ItemDef)MemberwiseClone();
 }
 
 /// <summary>Item ids worn in each <see cref="EquipSlot"/>; 0 means the slot is empty.</summary>
@@ -72,6 +77,9 @@ public sealed class ItemCatalog
 
     private Dictionary<int, ItemDef> _items = [];
 
+    /// <summary>The file the server reads and the editor saves into.</summary>
+    public string? SourcePath { get; private set; }
+
     /// <summary>
     /// The server's copy: data/private/items.json when a private character art set brought its own
     /// items, otherwise data/items.json.
@@ -84,10 +92,17 @@ public sealed class ItemCatalog
 
     public static ItemCatalog Load(string path)
     {
-        var catalog = new ItemCatalog();
+        var catalog = new ItemCatalog { SourcePath = path };
         if (File.Exists(path)) catalog.Replace(File.ReadAllText(path));
         return catalog;
     }
+
+    /// <summary>Items as JSON in the same shape as the files: one per line, readable in a diff.</summary>
+    public static string ToJson(IEnumerable<ItemDef> items) => ContentJson.Array(items);
+
+    /// <summary>Validates and parses JSON from an editor; throws on anything malformed.</summary>
+    public static List<ItemDef> Parse(string json) =>
+        JsonSerializer.Deserialize<List<ItemDef>>(json, JsonOptions) ?? throw new InvalidDataException("Empty item list.");
 
     /// <summary>The client starts empty and fills in when the server sends the catalog.</summary>
     public static ItemCatalog Empty() => new();

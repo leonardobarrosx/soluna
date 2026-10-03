@@ -1,6 +1,8 @@
 using Soluna.Server;
 using Soluna.Shared;
 
+Console.OutputEncoding = System.Text.Encoding.UTF8;
+
 // --game <name> serves that game from games/<name>; --new-game <name> [--from <template>] creates one and exits.
 string? Arg(string name) => args.SkipWhile(a => a != name).Skip(1).FirstOrDefault();
 if (Arg("--new-game") is { } newGame)

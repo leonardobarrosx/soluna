@@ -18,9 +18,11 @@ namespace Soluna.Client;
 /// <param name="Editor">Open the map editor as soon as the map arrives.</param>
 /// <param name="Inventory">Open the equipment panel on entry.</param>
 /// <param name="Creation">After logging in, open character creation instead of the select screen.</param>
+/// <param name="GameEditorTab">Open the game editor on entry, on this tab ("items" or "npcs").</param>
 internal sealed record ClientOptions(
     string Host, int Port, string Name, string? User = null, string? Password = null, bool Play = false,
-    string? Screenshot = null, bool Walk = false, bool Editor = false, bool Inventory = false, bool Creation = false);
+    string? Screenshot = null, bool Walk = false, bool Editor = false, bool Inventory = false, bool Creation = false,
+    string? GameEditorTab = null);
 
 internal enum Stage
 {
@@ -54,6 +56,8 @@ internal sealed class SolunaGame : Game
     private readonly Dictionary<int, (Character view, NpcDef def)> _npcs = [];
 
     private readonly Hud _hud = new();
+    private Gui _gui = null!;
+    private GameEditor _gameEditor = null!;
     private readonly FloatingText _floating = new();
     private float _nextAttackIn;
 
@@ -105,6 +109,7 @@ internal sealed class SolunaGame : Game
             {
                 case Stage.Login: _login.OnTextInput(e.Character); break;
                 case Stage.Create: _creation?.OnTextInput(e.Character); break;
+                case Stage.World when _gameEditor.Open: _gui.OnTextInput(e.Character); break;
                 case Stage.World: _chat.OnTextInput(e.Character); break;
             }
         };
@@ -134,6 +139,15 @@ internal sealed class SolunaGame : Game
         _login = new LoginScreen(_options.User ?? "");
         _select = new SelectScreen(_sprites);
         _lightMask = PlaceholderArt.LightMask(GraphicsDevice, MaskInner, MaskOuter);
+        _gui = new Gui(_textures.Pixel, _fonts, _input);
+        _gameEditor = new GameEditor(_gui, _textures, _sprites, _items, _npcDefs)
+        {
+            Save = (kind, json) => Send(PacketType.ContentSave, w =>
+            {
+                w.Put((byte)kind);
+                w.PutBlob(System.Text.Encoding.UTF8.GetBytes(json));
+            }),
+        };
         Connect();
     }
 
@@ -197,11 +211,18 @@ internal sealed class SolunaGame : Game
 
             case PacketType.ItemCatalog:
                 _items.Replace(r.GetString());
+                _gameEditor.CatalogChanged(ContentKind.Items);
                 _sprites.Clear();
                 break;
 
             case PacketType.NpcCatalog:
                 _npcDefs.Replace(r.GetString());
+                _gameEditor.CatalogChanged(ContentKind.Npcs);
+                // NPCs on screen hold their old definition: point them at the new one.
+                foreach (var (index, npc) in _npcs.ToList())
+                {
+                    if (_npcDefs.Get(npc.def.Id) is { } def) _npcs[index] = (npc.view, def);
+                }
                 break;
 
             case PacketType.NpcSpawned:
@@ -264,6 +285,7 @@ internal sealed class SolunaGame : Game
                 _local = new Character(me.Id, me.Name, me.Look, me.Equipment);
                 _local.Place(me.X, me.Y, me.Dir);
                 _inventory.Open = _options.Inventory;
+                if (_options.GameEditorTab != null && _access > 0) _gameEditor.OpenOn(_options.GameEditorTab);
                 Window.Title = $"{Constants.GameName} · {me.Name}";
                 _chat.Add("", _access > 0 ? "Você é administrador: F1 abre o editor, /item <id> cria itens." : "Bem-vindo a Soluna.");
                 GoTo(Stage.World);
@@ -334,8 +356,12 @@ internal sealed class SolunaGame : Game
                 break;
 
             case PacketType.ChatMessage:
-                _chat.Add(r.GetString(), r.GetString());
+            {
+                var (from, text) = (r.GetString(), r.GetString());
+                _chat.Add(from, text);
+                if (from.Length == 0 && _gameEditor.Open) _gameEditor.Message(text);
                 break;
+            }
 
             case PacketType.PlayerLook:
             {
@@ -545,6 +571,24 @@ internal sealed class SolunaGame : Game
 
     private void UpdateWorld(float dt)
     {
+        // The game editor takes the keyboard and mouse while open; the world keeps going behind it.
+        if (_gameEditor.Open)
+        {
+            if (_input.Pressed(Keys.F2) || _input.Pressed(Keys.Escape) && !_gui.Typing) _gameEditor.Toggle();
+            if (_map == null || _local == null) return;
+            _local.Update(dt * 1000);
+            foreach (var other in _others.Values) other.Update(dt * 1000);
+            foreach (var (view, _) in _npcs.Values) view.Update(dt * 1000);
+            _floating.Update(dt);
+            _camera.Follow(_local.Position + new Vector2(Constants.TileSize / 2f), new Vector2(_map.Width, _map.Height) * Constants.TileSize);
+            return;
+        }
+        if (_input.Pressed(Keys.F2) && !_chat.Typing)
+        {
+            if (_access > 0) _gameEditor.Toggle();
+            else _chat.Add("", "Só administradores podem editar o jogo.");
+        }
+
         HandleHotkeys();
         if (_map == null || _local == null) return;
 
@@ -747,6 +791,12 @@ internal sealed class SolunaGame : Game
                 _chat.Draw(_batch, _textures.Pixel, _fonts, Screen);
                 _editor.DrawPanel(_batch, _fonts, _map!, Screen);
                 _inventory.Draw(_batch, _textures.Pixel, _fonts, _local!, Screen);
+                if (_gameEditor.Open)
+                {
+                    _gui.Begin(_batch, (float)gameTime.ElapsedGameTime.TotalSeconds);
+                    _gameEditor.Draw(Screen, _local!.Look, (float)gameTime.ElapsedGameTime.TotalSeconds);
+                    _gui.End();
+                }
                 break;
         }
         _batch.End();
@@ -857,7 +907,7 @@ internal sealed class SolunaGame : Game
 
         if (_editor.Active || _inventory.Open) return;
         var hint = _access > 0
-            ? "Enter chat  ·  I equipamento  ·  F1 editor  ·  F3 noite  ·  +/- zoom"
+            ? "Enter chat  ·  I equipamento  ·  F1 mapa  ·  F2 jogo  ·  F3 noite  ·  +/- zoom"
             : "Enter chat  ·  I equipamento  ·  F3 noite  ·  +/- zoom";
         var size = _fonts.Small.MeasureString(hint);
         var screen = Screen;

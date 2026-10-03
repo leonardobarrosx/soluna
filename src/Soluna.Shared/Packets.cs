@@ -23,6 +23,9 @@ public enum PacketType : byte
     /// <summary>Attack whatever is in front: direction.</summary>
     Attack = 11,
 
+    /// <summary>Admin: replace a whole kind of content (<see cref="ContentKind"/>, then its JSON).</summary>
+    ContentSave = 12,
+
     // Server -> Client
     LoginOk = 100,
     MapLoad = 101,

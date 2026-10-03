@@ -176,6 +176,7 @@ internal sealed partial class GameServer
                     case PacketType.EquipToggle: HandleEquip(player, reader); break;
                     case PacketType.MapRequest: HandleMapRequest(player, reader); break;
                     case PacketType.Attack: HandleAttack(player, reader); break;
+                    case PacketType.ContentSave: HandleContentSave(player, reader); break;
                     default: Log.Warn($"Unexpected {type} from {player.Name}."); break;
                 }
                 return;

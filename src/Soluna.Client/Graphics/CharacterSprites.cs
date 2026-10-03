@@ -38,15 +38,24 @@ internal sealed class CharacterSprites
     /// <summary>False when no character art is installed; callers fall back to placeholder art.</summary>
     public bool Available => _catalog != null;
 
-    public Texture2D Get(Appearance look, Equipment equipment)
+    public Texture2D Get(Appearance look, Equipment equipment) => Get(look, equipment, null, null);
+
+    /// <summary>
+    /// A look wearing one more part that is not an item yet (the editor's preview of an item being made).
+    /// Cached like the rest, so it is cheap to ask every frame.
+    /// </summary>
+    public Texture2D Get(Appearance look, Equipment equipment, string? extraSheet, string? extraColor)
     {
-        var key = $"{look}|{equipment}";
+        var key = $"{look}|{equipment}|{extraSheet}|{extraColor}";
         if (_sheets.TryGetValue(key, out var cached)) return cached;
 
-        var sheet = Compose(look, equipment);
+        var sheet = Compose(look, equipment, extraSheet, extraColor);
         _sheets[key] = sheet;
         return sheet;
     }
+
+    /// <summary>Every part the active art set has, for the editors to choose from.</summary>
+    public IEnumerable<string> SheetIds => _catalog?.Sheets.Keys.Order() ?? Enumerable.Empty<string>();
 
     /// <summary>Drops cached sheets once there are too many. Call outside Draw, never while a batch is open.</summary>
     public void Trim()
@@ -104,7 +113,7 @@ internal sealed class CharacterSprites
             .FirstOrDefault(sheets.ContainsKey);
     }
 
-    private Texture2D Compose(Appearance look, Equipment equipment)
+    private Texture2D Compose(Appearance look, Equipment equipment, string? extraSheet, string? extraColor)
     {
         var catalog = _catalog!;
         var width = catalog.Frame * 3;
@@ -112,7 +121,9 @@ internal sealed class CharacterSprites
         var output = new Color[width * height];
 
         var layers = new List<(int z, Layer layer, string? color)>();
-        foreach (var (sheetId, color) in Parts(look, equipment))
+        var parts = Parts(look, equipment);
+        if (!string.IsNullOrEmpty(extraSheet)) parts = parts.Append((extraSheet, extraColor));
+        foreach (var (sheetId, color) in parts)
         {
             // Body-specific pieces exist as "<id>_m" / "<id>_f"; everything else fits both bodies.
             if (Resolve(sheetId, look.BodyId) is not { } id || !catalog.Sheets.TryGetValue(id, out var def)) continue;
