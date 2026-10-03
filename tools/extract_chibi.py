@@ -13,6 +13,7 @@ Usage: pip install pypdn, then python tools/extract_chibi.py
 
 import io
 import json
+import os
 import pathlib
 import urllib.request
 import zipfile
@@ -21,7 +22,9 @@ import pypdn
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-OUT = ROOT / "assets" / "characters" / "chibi"
+# The game whose content this builds: games/<SOLUNA_GAME>, soluna by default.
+GAME = ROOT / "games" / os.environ.get("SOLUNA_GAME", "soluna")
+OUT = GAME / "assets" / "characters" / "chibi"
 SOURCE = OUT / "source" / "npc_builder.pdn"
 URL = "https://opengameart.org/sites/default/files/npc_builder_1.zip"
 

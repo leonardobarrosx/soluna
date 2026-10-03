@@ -9,12 +9,15 @@ Usage: python tools/fetch_assets.py   (from anywhere; needs only the standard li
 """
 
 import io
+import os
 import pathlib
 import urllib.request
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-ASSETS = ROOT / "assets"
+# The game whose content this builds: games/<SOLUNA_GAME>, soluna by default.
+GAME = ROOT / "games" / os.environ.get("SOLUNA_GAME", "soluna")
+ASSETS = GAME / "assets"
 BASE_ASSETS_ZIP = "https://opengameart.org/sites/default/files/lpc_base_assets.zip"
 
 

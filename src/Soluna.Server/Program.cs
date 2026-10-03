@@ -1,6 +1,22 @@
 using Soluna.Server;
 using Soluna.Shared;
 
+// --game <name> serves that game from games/<name>; --new-game <name> [--from <template>] creates one and exits.
+string? Arg(string name) => args.SkipWhile(a => a != name).Skip(1).FirstOrDefault();
+if (Arg("--new-game") is { } newGame)
+{
+    DataPaths.CreateGame(newGame, Arg("--from") ?? DataPaths.DefaultGame);
+    Log.Info($"Created game '{newGame}' in {Path.Combine(DataPaths.GamesRoot, newGame)}.");
+    return;
+}
+if (Arg("--game") is { } game) DataPaths.UseGame(game);
+if (!Directory.Exists(DataPaths.GameFolder))
+{
+    Log.Warn($"Game '{DataPaths.Game}' not found in {DataPaths.GamesRoot}. Games: {string.Join(", ", DataPaths.Games())}.");
+    return;
+}
+Log.Info($"Game '{DataPaths.Game}' ({DataPaths.GameFolder}).");
+
 var maps = new MapStore(Path.Combine(DataPaths.Data, "maps"));
 
 // Soluna.Server import <map.tmx> <id> [name]: bring a Tiled map in, then exit.

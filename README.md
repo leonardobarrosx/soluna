@@ -44,6 +44,10 @@ Soluna follows the shape of [Crystalshire](https://github.com/RobinPerris/Crysta
 - Character art sets: creation choices (bodies, races, skins, hair, beards, eyes) come from the set's `options.json`, so a set can be swapped without code changes. With [Pipoya's Character Sprite 32 Generator](https://pipoya.itch.io/pipoya-free-rpg-character-sprites-32x32) extracted into `assets/tilesets/private/`, `python tools/import_nekonin.py` builds the NEKONIN cat-folk set (17 furs, tail styles, whiskers, hats, glasses, capes, wings, the human set's weapons) with cat-folk villagers, and `python tools/import_pipoya_characters.py` the human set (elf, cat and dog races, beards, hats, weapons, capes); whichever ran last is the active one (`assets/characters/private/active`), and its items and NPCs go to `data/private`. All of it stays out of git
 - Falls back to placeholder art painted in code if the asset folders are missing
 
+## Games
+
+The engine holds several games. Each one is a folder under `games/` with its own `data/` (maps, items, NPCs, accounts) and `assets/` (tilesets, characters, fonts); `games/soluna` is the one that ships. Pick one with `--game <name>` on the server and the client, and start a new one from an existing game with `dotnet run --project src/Soluna.Server -- --new-game <name> [--from soluna]`: maps, items, NPCs and the art that may be shared are copied, private art and accounts are not. Below, `data/` and `assets/` mean the game's folders.
+
 ## Run it
 
 Needs the .NET 10 SDK.
@@ -78,23 +82,23 @@ In the editor: 1 to 5 picks the layer (Ground, Mask, Mask2 under characters; Fri
 
 ## Art
 
-Characters are the layers of IndigoFenix's BoundWorlds Character Maker (CC-BY 4.0), extracted by `tools/extract_chibi.py`. Tiles are the LPC base tiles (CC-BY-SA 3.0 / GPL 3.0), fetched by `tools/fetch_assets.py`. Both ship in `assets/` with their credits. See [assets/README.md](assets/README.md) for how the paper doll works and how to add art, including packs that cannot be redistributed. RPG Maker's RTP and DLC art is licensed for RPG Maker games only, so it is not used.
+Characters are the layers of IndigoFenix's BoundWorlds Character Maker (CC-BY 4.0), extracted by `tools/extract_chibi.py`. Tiles are the LPC base tiles (CC-BY-SA 3.0 / GPL 3.0), fetched by `tools/fetch_assets.py`. Both ship in `assets/` with their credits. See [games/soluna/assets/README.md](games/soluna/assets/README.md) for how the paper doll works and how to add art, including packs that cannot be redistributed. RPG Maker's RTP and DLC art is licensed for RPG Maker games only, so it is not used.
 
 ## Layout
 
 ```
-src/Soluna.Shared   protocol, map format, constants
-src/Soluna.Server   console server, accounts (data/accounts, not committed), maps (data/maps)
-src/Soluna.Client   MonoGame client, renderer, UI, editor
-data/maps           maps, edited in game (data/maps/private: maps using private art, not committed)
-data/items.json     items and the layers they wear
-assets              character layers, tiles and credits
-tools               asset download script
+src/Soluna.Shared        protocol, map format, game paths, constants
+src/Soluna.Server        console server
+src/Soluna.Client        MonoGame client, renderer, UI, editors
+games/<name>/data        maps, items.json, npcs.json, accounts (not committed); private/ for content using private art
+games/<name>/assets      tilesets, character art and credits; private/ folders for art that may not be shared
+tools                    asset and art-set import scripts
+cache/<name>             maps the client keeps between sessions
 ```
 
 ## Next
 
-Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, animated tiles, skills and spells, ranged attacks, then the card duel system that the VB6 version started.
+Everything a game creator does is meant to happen inside the engine, in the in-game editors (admin only), never by editing files or running scripts. Next, in order: the editor foundation (widgets, and a protocol for saving content on the server and pushing it live to everyone online); editors for items with prices, NPCs, map properties with NPC and warp placement, and importing tilesets and sprites through the interface with the server distributing them to clients; a launcher in the client to create a game or pick one and host it locally; editors for character art and animations. Then, each with its editor from the start: Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, animated tiles, skills and spells, ranged attacks, then the card duel system that the VB6 version started.
 
 ## Credits
 

@@ -14,6 +14,7 @@ Usage: python tools/import_nekonin.py   (python tools/import_pipoya_characters.p
 """
 
 import json
+import os
 import pathlib
 import re
 import shutil
@@ -23,14 +24,16 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from import_pipoya_characters import NPC_DEFS, STATS, WEAPON_NAMES, WEAPONS, layer_orders, repair  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PRIVATE = ROOT / "assets" / "tilesets" / "private"
+# The game whose content this builds: games/<SOLUNA_GAME>, soluna by default.
+GAME = ROOT / "games" / os.environ.get("SOLUNA_GAME", "soluna")
+PRIVATE = GAME / "assets" / "tilesets" / "private"
 SOURCE = next(PRIVATE.glob("**/pipoya32x32_nekonin"), None)
 HUMANS = next(PRIVATE.glob("**/pipoya32x32_characters"), None)
 NEKONIN_SPRITES = next(PRIVATE.glob("PIPOYA FREE RPG Character Sprites NEKONIN/**/pipo-nekonin001.png"), None)
 MONSTERS = next(PRIVATE.glob("PIPOYA FREE RPG Character Sprites 32x32/**/Enemy"), None)
-OUT = ROOT / "assets" / "characters" / "private" / "nekonin"
-ITEMS = ROOT / "data" / "private" / "items.json"
-NPCS = ROOT / "data" / "private" / "npcs.json"
+OUT = GAME / "assets" / "characters" / "private" / "nekonin"
+ITEMS = GAME / "data" / "private" / "items.json"
+NPCS = GAME / "data" / "private" / "npcs.json"
 
 # The 17 bases: 12 cats, then bears and a panda, each with a tail of matching fur.
 FURS = ["Creme", "Caramelo", "Branco", "Cinza", "Laranja rajado", "Tigrado", "Cinza e branco", "Tricolor",
@@ -214,7 +217,7 @@ def write_npcs():
             continue
         target = out / f"{npc_id}.png"
         shutil.copyfile(source, target)
-        entry = {"id": npc_id, "name": name, "sprite": target.relative_to(ROOT / "assets").as_posix(),
+        entry = {"id": npc_id, "name": name, "sprite": target.relative_to(GAME / "assets").as_posix(),
                  "behaviour": behaviour, "hp": hp, "attack": attack, "defense": defense, "exp": exp}
         entry.update(extra)
         npcs.append(entry)
@@ -226,7 +229,7 @@ def write_npcs():
             continue
         target = out / f"{npc_id}.png"
         shutil.copyfile(source, target)
-        npcs.append({"id": npc_id, "name": name, "sprite": target.relative_to(ROOT / "assets").as_posix(),
+        npcs.append({"id": npc_id, "name": name, "sprite": target.relative_to(GAME / "assets").as_posix(),
                      "behaviour": "Friendly", "hp": 30, "attack": 0, "defense": 0, "exp": 0})
     npcs.sort(key=lambda n: n["id"])
     NPCS.write_text("[\n" + ",\n".join("  " + json.dumps(n, ensure_ascii=False) for n in npcs) + "\n]\n", encoding="utf-8")

@@ -4,17 +4,15 @@ obj/
 .idea/
 *.user
 
-# Art you are allowed to use but not to redistribute.
-assets/**/private/
+# Art you are allowed to use but not to redistribute, in any game.
+games/*/assets/**/private/
 
 # Player accounts and characters stay on the server that created them.
-data/accounts/
+games/*/data/accounts/
 
-# Maps that use private art.
-data/maps/private/
-
-# Game data that goes with private art (items for a private character set).
-data/private/
+# Maps and game data that use private art.
+games/*/data/maps/private/
+games/*/data/private/
 
 # Maps the client keeps between sessions.
 cache/

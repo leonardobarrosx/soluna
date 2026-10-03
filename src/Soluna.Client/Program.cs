@@ -3,6 +3,7 @@ using Soluna.Shared;
 
 // Usage: Soluna.Client [--host 127.0.0.1] [--port 7171]
 //   [--user name --password secret [--play]]   log in on start, creating the account if needed
+//   [--game soluna]   which game under games/ to load art from
 //   [--name Leo] [--walk] [--editor] [--inventory] [--creation] [--screenshot shot.png]   for testing
 var host = "127.0.0.1";
 var port = Constants.DefaultPort;
@@ -23,6 +24,7 @@ for (var i = 0; i < args.Length - 1; i++)
         case "--user": user = args[++i]; break;
         case "--password": password = args[++i]; break;
         case "--screenshot": screenshot = args[++i]; break;
+        case "--game": DataPaths.UseGame(args[++i]); break;
     }
 }
 

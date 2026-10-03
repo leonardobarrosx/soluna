@@ -82,7 +82,7 @@ internal sealed class SolunaGame : Game
     // Set while walking off a map's edge, until the server answers with the next map.
     private bool _awaitingTransfer;
 
-    private static readonly string MapCache = Path.Combine(DataPaths.Root, "cache", "maps");
+    private static readonly string MapCache = Path.Combine(DataPaths.Root, "cache", DataPaths.Game, "maps");
     private float _stageSeconds;
     private Direction? _wanderDir;
     private float _wanderSeconds;

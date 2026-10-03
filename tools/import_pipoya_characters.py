@@ -15,17 +15,20 @@ Usage: python tools/import_pipoya_characters.py   (makes this the active set; to
 """
 
 import json
+import os
 import pathlib
 import re
 import shutil
 import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SOURCE = next((ROOT / "assets" / "tilesets" / "private").glob("**/pipoya32x32_characters"), None)
-OUT = ROOT / "assets" / "characters" / "private" / "pipoya"
-ITEMS = ROOT / "data" / "private" / "items.json"
-NPCS = ROOT / "data" / "private" / "npcs.json"
-SPRITES = next((ROOT / "assets" / "tilesets" / "private").glob("PIPOYA FREE RPG Character Sprites 32x32/**/Enemy"), None)
+# The game whose content this builds: games/<SOLUNA_GAME>, soluna by default.
+GAME = ROOT / "games" / os.environ.get("SOLUNA_GAME", "soluna")
+SOURCE = next((GAME / "assets" / "tilesets" / "private").glob("**/pipoya32x32_characters"), None)
+OUT = GAME / "assets" / "characters" / "private" / "pipoya"
+ITEMS = GAME / "data" / "private" / "items.json"
+NPCS = GAME / "data" / "private" / "npcs.json"
+SPRITES = next((GAME / "assets" / "tilesets" / "private").glob("PIPOYA FREE RPG Character Sprites 32x32/**/Enemy"), None)
 
 LOSSY = {"Åù": "女", "Æj": "男", "ïñùp": "共用", "û+": "目", "ò×": "服", "ö»": "髪"}
 
@@ -283,7 +286,7 @@ def write_npcs():
             continue
         target = out / f"{npc_id}.png"
         shutil.copyfile(source, target)
-        entry = {"id": npc_id, "name": name, "sprite": target.relative_to(ROOT / "assets").as_posix(),
+        entry = {"id": npc_id, "name": name, "sprite": target.relative_to(GAME / "assets").as_posix(),
                  "behaviour": behaviour, "hp": hp, "attack": attack, "defense": defense, "exp": exp}
         entry.update(extra)
         npcs.append(entry)
