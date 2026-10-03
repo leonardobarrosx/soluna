@@ -22,7 +22,7 @@ namespace Soluna.Client;
 internal sealed record ClientOptions(
     string Host, int Port, string Name, string? User = null, string? Password = null, bool Play = false,
     string? Screenshot = null, bool Walk = false, bool Editor = false, bool Inventory = false, bool Creation = false,
-    string? GameEditorTab = null);
+    string? GameEditorTab = null, string? EditorMode = null);
 
 internal enum Stage
 {
@@ -109,7 +109,7 @@ internal sealed class SolunaGame : Game
             {
                 case Stage.Login: _login.OnTextInput(e.Character); break;
                 case Stage.Create: _creation?.OnTextInput(e.Character); break;
-                case Stage.World when _gameEditor.Open: _gui.OnTextInput(e.Character); break;
+                case Stage.World when _gameEditor.Open || _editor.Active && !_chat.Typing: _gui.OnTextInput(e.Character); break;
                 case Stage.World: _chat.OnTextInput(e.Character); break;
             }
         };
@@ -134,12 +134,19 @@ internal sealed class SolunaGame : Game
         _fonts = new Fonts();
         _sprites = new Sprites(new CharacterSprites(GraphicsDevice, _items), _textures);
         _renderer = new MapRenderer(_textures, _sprites);
-        _editor = new MapEditor(_textures, _renderer);
         _inventory = new InventoryPanel(_items, _sprites);
         _login = new LoginScreen(_options.User ?? "");
         _select = new SelectScreen(_sprites);
         _lightMask = PlaceholderArt.LightMask(GraphicsDevice, MaskInner, MaskOuter);
         _gui = new Gui(_textures.Pixel, _fonts, _input);
+        _editor = new MapEditor(_textures, _renderer, _gui)
+        {
+            SaveRequested = SaveMap,
+            MapsRequested = () => Send(PacketType.MapListRequest),
+            // Going to and creating maps run on the server; the buttons send the admin commands for them.
+            GoTo = id => Send(PacketType.ChatSend, w => w.Put($"/ir {id}")),
+            CreateMap = (name, width, height) => Send(PacketType.ChatSend, w => w.Put($"/novomapa {width} {height} {name}")),
+        };
         _gameEditor = new GameEditor(_gui, _textures, _sprites, _items, _npcDefs)
         {
             Save = (kind, json) => Send(PacketType.ContentSave, w =>
@@ -298,6 +305,14 @@ internal sealed class SolunaGame : Game
                 for (var i = 0; i < count; i++) _inventory.Inventory.Add(r.GetInt());
                 break;
             }
+            case PacketType.MapList:
+            {
+                var maps = new List<(int, string)>();
+                var count = r.GetInt();
+                for (var i = 0; i < count; i++) maps.Add((r.GetInt(), r.GetString()));
+                _editor.Maps = maps;
+                break;
+            }
             case PacketType.MapChange:
                 OnMapChange(r.GetInt(), r.GetInt(), r.GetInt(), r.GetInt(), (Direction)r.GetByte());
                 break;
@@ -406,7 +421,11 @@ internal sealed class SolunaGame : Game
             _editor.Toggle(map);
             _editor.Toggle(map);
         }
-        if (_options.Editor && !_editor.Active) _editor.Toggle(map);
+        if (_options.Editor && !_editor.Active)
+        {
+            _editor.Toggle(map);
+            if (_options.EditorMode != null) _editor.SetMode(_options.EditorMode);
+        }
         if (changed) _chat.Add("", $"Você está em {map.Name}.");
     }
 
@@ -589,17 +608,20 @@ internal sealed class SolunaGame : Game
             else _chat.Add("", "Só administradores podem editar o jogo.");
         }
 
-        HandleHotkeys();
+        // Typing in a map editor field: keys are text, not movement or shortcuts.
+        var typingInPanel = _editor.Active && _gui.Typing;
+        if (!typingInPanel) HandleHotkeys();
         if (_map == null || _local == null) return;
 
-        UpdateLocal(dt * 1000);
+        if (typingInPanel) _local.Update(dt * 1000);
+        else UpdateLocal(dt * 1000);
         if (_options.Walk) TryOnRandomItem(dt);
         foreach (var other in _others.Values) other.Update(dt * 1000);
         foreach (var (view, _) in _npcs.Values) view.Update(dt * 1000);
         _floating.Update(dt);
-        UpdateAttack(dt);
+        if (!typingInPanel) UpdateAttack(dt);
 
-        if (_editor.Update(_input, _map, _camera, Screen) && _editor.Dirty) SaveMap();
+        if (_editor.Update(_input, _map, _camera, Screen, _npcDefs) && _editor.Dirty) SaveMap();
         if (_inventory.Update(_input, Screen) is { } clicked) Send(PacketType.EquipToggle, w => w.Put(clicked));
         _camera.Follow(_local.Position + new Vector2(Constants.TileSize / 2f), new Vector2(_map.Width, _map.Height) * Constants.TileSize);
     }
@@ -789,12 +811,13 @@ internal sealed class SolunaGame : Game
                 DrawStatusBar(_map!);
                 _hud.Draw(_batch, _textures.Pixel, _fonts);
                 _chat.Draw(_batch, _textures.Pixel, _fonts, Screen);
-                _editor.DrawPanel(_batch, _fonts, _map!, Screen);
                 _inventory.Draw(_batch, _textures.Pixel, _fonts, _local!, Screen);
-                if (_gameEditor.Open)
+                if (_gameEditor.Open || _editor.Active)
                 {
-                    _gui.Begin(_batch, (float)gameTime.ElapsedGameTime.TotalSeconds);
-                    _gameEditor.Draw(Screen, _local!.Look, (float)gameTime.ElapsedGameTime.TotalSeconds);
+                    var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+                    _gui.Begin(_batch, dt);
+                    if (_editor.Active) _editor.DrawPanel(_batch, _map!, Screen, _local!, _npcDefs);
+                    if (_gameEditor.Open) _gameEditor.Draw(Screen, _local!.Look, dt);
                     _gui.End();
                 }
                 break;
@@ -829,7 +852,7 @@ internal sealed class SolunaGame : Game
         foreach (var (character, sheet) in units.OrderBy(u => u.Item1.Position.Y))
             _renderer.DrawCharacter(_batch, character, sheet);
         _renderer.DrawLayers(_batch, map, _camera, map.FringeFrom, map.Layers.Length);
-        _editor.DrawWorld(_batch, map, _camera);
+        _editor.DrawWorld(_batch, map, _camera, _npcDefs, NpcSheet);
 
         _batch.End();
 

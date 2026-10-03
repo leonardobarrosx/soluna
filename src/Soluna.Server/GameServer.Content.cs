@@ -61,6 +61,20 @@ internal sealed partial class GameServer
         }
     }
 
+    private void HandleMapList(Player player)
+    {
+        if (!player.IsAdmin) return;
+        var ids = _maps.Ids().ToList();
+        var w = PacketIO.Begin(PacketType.MapList);
+        w.Put(ids.Count);
+        foreach (var id in ids)
+        {
+            w.Put(id);
+            w.Put(_maps.Get(id).Name);
+        }
+        player.Peer.Send(w, DeliveryMethod.ReliableOrdered);
+    }
+
     private static void Validate(IEnumerable<(int id, string name)> entries, string what, string plural)
     {
         var list = entries.ToList();

@@ -26,6 +26,9 @@ public enum PacketType : byte
     /// <summary>Admin: replace a whole kind of content (<see cref="ContentKind"/>, then its JSON).</summary>
     ContentSave = 12,
 
+    /// <summary>Admin: which maps the game has.</summary>
+    MapListRequest = 13,
+
     // Server -> Client
     LoginOk = 100,
     MapLoad = 101,
@@ -76,6 +79,9 @@ public enum PacketType : byte
 
     /// <summary>A unit swung: kind, id, direction, for the attack lunge.</summary>
     Attacked = 120,
+
+    /// <summary>The game's maps: count, then id and name of each.</summary>
+    MapList = 121,
 }
 
 /// <summary>What a character slot shows on the select screen.</summary>

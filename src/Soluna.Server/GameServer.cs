@@ -177,6 +177,7 @@ internal sealed partial class GameServer
                     case PacketType.MapRequest: HandleMapRequest(player, reader); break;
                     case PacketType.Attack: HandleAttack(player, reader); break;
                     case PacketType.ContentSave: HandleContentSave(player, reader); break;
+                    case PacketType.MapListRequest: HandleMapList(player); break;
                     default: Log.Warn($"Unexpected {type} from {player.Name}."); break;
                 }
                 return;
@@ -670,9 +671,19 @@ internal sealed partial class GameServer
             return;
         }
 
+        // Links, warps and NPCs must point at things that exist.
+        var links = new[] { map.Links.Up, map.Links.Down, map.Links.Left, map.Links.Right };
+        if (links.Any(l => l != 0 && (l == map.Id || !_maps.Exists(l))) || map.Warps.Any(w => !_maps.Exists(w.Map))
+            || map.Npcs.Any(n => _npcs.Get(n.NpcId) == null || !map.InBounds(n.X, n.Y)))
+        {
+            Tell(player, "O mapa aponta para um mapa ou NPC que não existe; não foi salvo.");
+            return;
+        }
+
         map.Revision = current.Revision;
         _maps.Save(map);
         AnnounceRevision(map);
+        ResetState(map);
         BroadcastChat(map.Id, "", $"{player.Name} salvou o mapa.");
         Log.Info($"{player.Name} saved map {map.Id}.");
     }
