@@ -16,10 +16,66 @@ public enum MapLayer
     Fringe2 = 4,
 }
 
+/// <summary>What a tile does, besides how it looks. Mirrors Crystalshire's tile types.</summary>
 public enum TileAttribute : byte
 {
     None = 0,
     Blocked = 1,
+
+    /// <summary>Stepping on it moves the player to the destination in <see cref="MapData.Warps"/>.</summary>
+    Warp = 2,
+
+    /// <summary>Walkable for players, never entered by NPCs (doorways, shop counters).</summary>
+    NpcAvoid = 3,
+
+    /// <summary>Restores health while standing on it (takes effect once vitals exist).</summary>
+    Heal = 4,
+}
+
+/// <summary>Whether players may fight on a map.</summary>
+public enum MapMoral : byte
+{
+    Safe = 0,
+    Pvp = 1,
+}
+
+/// <summary>A warp tile and where it leads.</summary>
+public sealed class Warp
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Map { get; set; }
+    public int ToX { get; set; }
+    public int ToY { get; set; }
+}
+
+/// <summary>The maps beyond each edge; walking off an edge with a link carries on into that map. 0 means none.</summary>
+public sealed class MapLinks
+{
+    public int Up { get; set; }
+    public int Down { get; set; }
+    public int Left { get; set; }
+    public int Right { get; set; }
+
+    public int this[Direction dir] => dir switch
+    {
+        Direction.Up => Up,
+        Direction.Down => Down,
+        Direction.Left => Left,
+        Direction.Right => Right,
+        _ => 0,
+    };
+
+    public void Set(Direction dir, int map)
+    {
+        switch (dir)
+        {
+            case Direction.Up: Up = map; break;
+            case Direction.Down: Down = map; break;
+            case Direction.Left: Left = map; break;
+            case Direction.Right: Right = map; break;
+        }
+    }
 }
 
 public sealed class MapData
@@ -31,6 +87,18 @@ public sealed class MapData
     public string Name { get; set; } = "";
     public int Width { get; set; }
     public int Height { get; set; }
+
+    /// <summary>Goes up on every save; clients keep maps in a cache and fetch them again only when it changes.</summary>
+    public int Revision { get; set; } = 1;
+
+    public MapMoral Moral { get; set; }
+
+    /// <summary>Music file under assets/music, or empty for silence.</summary>
+    public string Music { get; set; } = "";
+
+    public MapLinks Links { get; set; } = new();
+
+    public List<Warp> Warps { get; set; } = [];
 
     /// <summary>Tileset file names, indexed by the tileset part of a tile ref.</summary>
     public List<string> Tilesets { get; set; } = [];
@@ -87,6 +155,39 @@ public sealed class MapData
     public void SetAttribute(int x, int y, TileAttribute attribute) => Attributes[Index(x, y)] = (byte)attribute;
 
     public bool IsWalkable(int x, int y) => InBounds(x, y) && GetAttribute(x, y) != TileAttribute.Blocked;
+
+    public Warp? WarpAt(int x, int y) =>
+        InBounds(x, y) && GetAttribute(x, y) == TileAttribute.Warp ? Warps.FirstOrDefault(w => w.X == x && w.Y == y) : null;
+
+    /// <summary>Marks a warp tile, replacing any warp already there.</summary>
+    public void SetWarp(int x, int y, int map, int toX, int toY)
+    {
+        Warps.RemoveAll(w => w.X == x && w.Y == y);
+        Warps.Add(new Warp { X = x, Y = y, Map = map, ToX = toX, ToY = toY });
+        SetAttribute(x, y, TileAttribute.Warp);
+    }
+
+    /// <summary>Clears a tile's attribute, and its warp if it had one.</summary>
+    public void ClearAttribute(int x, int y)
+    {
+        Warps.RemoveAll(w => w.X == x && w.Y == y);
+        SetAttribute(x, y, TileAttribute.None);
+    }
+
+    /// <summary>The walkable tile nearest to (x, y), searching outward; (x, y) itself if nothing is found.</summary>
+    public (int x, int y) NearestWalkable(int x, int y, Func<int, int, bool>? free = null)
+    {
+        for (var radius = 0; radius < Math.Max(Width, Height); radius++)
+        for (var dy = -radius; dy <= radius; dy++)
+        for (var dx = -radius; dx <= radius; dx++)
+        {
+            if (Math.Max(Math.Abs(dx), Math.Abs(dy)) != radius) continue;
+            var (tx, ty) = (x + dx, y + dy);
+            if (IsWalkable(tx, ty) && GetAttribute(tx, ty) != TileAttribute.Warp && (free == null || free(tx, ty)))
+                return (tx, ty);
+        }
+        return (x, y);
+    }
 
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
 

@@ -30,7 +30,34 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
 
     public bool Active { get; private set; }
     public int Layer { get; private set; }
-    public bool AttributeMode { get; private set; }
+    /// <summary>The tile type being painted, or None while painting tiles. B cycles through them.</summary>
+    public TileAttribute Painting { get; private set; }
+
+    public bool AttributeMode => Painting != TileAttribute.None;
+
+    /// <summary>Where painted warp tiles lead; set with /destino in the chat.</summary>
+    public Warp? WarpTarget { get; set; }
+
+    private static readonly TileAttribute[] Cycle =
+        [TileAttribute.None, TileAttribute.Blocked, TileAttribute.Warp, TileAttribute.NpcAvoid, TileAttribute.Heal];
+
+    private static string AttributeName(TileAttribute a) => a switch
+    {
+        TileAttribute.Blocked => "Bloqueado",
+        TileAttribute.Warp => "Teleporte",
+        TileAttribute.NpcAvoid => "NPC evita",
+        TileAttribute.Heal => "Cura",
+        _ => "",
+    };
+
+    private static Color AttributeColor(TileAttribute a) => a switch
+    {
+        TileAttribute.Blocked => Theme.Danger,
+        TileAttribute.Warp => Theme.Luna,
+        TileAttribute.NpcAvoid => Theme.Sol,
+        TileAttribute.Heal => Theme.System,
+        _ => Color.Transparent,
+    };
     public bool Dirty { get; set; }
 
     public void Toggle(MapData map)
@@ -65,11 +92,11 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
             if (input.Pressed(Keys.D1 + i))
             {
                 Layer = i;
-                AttributeMode = false;
+                Painting = TileAttribute.None;
             }
         }
         Layer = Math.Clamp(Layer, 0, map.Layers.Length - 1);
-        if (input.Pressed(Keys.B)) AttributeMode = !AttributeMode;
+        if (input.Pressed(Keys.B)) Painting = Cycle[(Array.IndexOf(Cycle, Painting) + 1) % Cycle.Length];
         if (input.Pressed(Keys.Tab) && _palette.Count > 0)
         {
             _tileset = (_tileset + (input.Down(Keys.LeftShift) ? _palette.Count - 1 : 1)) % _palette.Count;
@@ -97,7 +124,7 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
                 {
                     _selectedSet = _palette[_tileset];
                     _selectedIndex = row * columns + col;
-                    AttributeMode = false;
+                    Painting = TileAttribute.None;
                 }
             }
         }
@@ -121,9 +148,23 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
     {
         if (AttributeMode)
         {
-            var value = erase ? TileAttribute.None : TileAttribute.Blocked;
-            if (map.GetAttribute(x, y) == value) return;
-            map.SetAttribute(x, y, value);
+            if (erase)
+            {
+                if (map.GetAttribute(x, y) == TileAttribute.None) return;
+                map.ClearAttribute(x, y);
+            }
+            else if (Painting == TileAttribute.Warp)
+            {
+                // A warp needs somewhere to go: /destino first.
+                if (WarpTarget is not { } to || map.WarpAt(x, y) is { } w && w.Map == to.Map && w.ToX == to.ToX && w.ToY == to.ToY) return;
+                map.SetWarp(x, y, to.Map, to.ToX, to.ToY);
+            }
+            else
+            {
+                if (map.GetAttribute(x, y) == Painting) return;
+                map.ClearAttribute(x, y);
+                map.SetAttribute(x, y, Painting);
+            }
         }
         else
         {
@@ -159,15 +200,16 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
             var pos = new Vector2(x * S, y * S);
             batch.Draw(pixel, pos, null, grid, 0, Vector2.Zero, new Vector2(S, line), SpriteEffects.None, 0);
             batch.Draw(pixel, pos, null, grid, 0, Vector2.Zero, new Vector2(line, S), SpriteEffects.None, 0);
-            if (map.GetAttribute(x, y) == TileAttribute.Blocked && (AttributeMode || Layer == 0))
-                batch.Draw(pixel, new Rectangle(x * S, y * S, S, S), Theme.Danger * (AttributeMode ? 0.35f : 0.15f));
+            var attribute = map.GetAttribute(x, y);
+            if (attribute != TileAttribute.None && (AttributeMode || Layer == 0))
+                batch.Draw(pixel, new Rectangle(x * S, y * S, S, S), AttributeColor(attribute) * (AttributeMode ? 0.4f : 0.15f));
         }
 
         if (_hover is not { } h) return;
         var rect = new Rectangle(h.X * S, h.Y * S, S, S);
         if (!AttributeMode && _selectedSet.Length > 0)
             renderer.DrawTile(batch, textures.Tileset(_selectedSet), _selectedIndex, rect.Location.ToVector2(), Color.White * 0.6f);
-        var outline = AttributeMode ? Theme.Danger : Theme.Luna;
+        var outline = AttributeMode ? AttributeColor(Painting) : Theme.Luna;
         batch.Draw(pixel, new Vector2(rect.X, rect.Y), null, outline, 0, Vector2.Zero, new Vector2(S, line * 2), SpriteEffects.None, 0);
         batch.Draw(pixel, new Vector2(rect.X, rect.Bottom - line * 2), null, outline, 0, Vector2.Zero, new Vector2(S, line * 2), SpriteEffects.None, 0);
         batch.Draw(pixel, new Vector2(rect.X, rect.Y), null, outline, 0, Vector2.Zero, new Vector2(line * 2, S), SpriteEffects.None, 0);
@@ -188,8 +230,10 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
         Ui.Text(batch, fonts.Title, "Editor de mapa", new Vector2(x, y), Theme.Luna);
         y += 30;
         var above = Layer >= map.FringeFrom ? " (acima)" : "";
-        var mode = AttributeMode ? "Atributo: Bloqueado" : $"Camada {Layer + 1}/{map.Layers.Length}: {map.LayerName(Layer)}{above}";
-        Ui.Text(batch, fonts.Body, mode, new Vector2(x, y), AttributeMode ? Theme.Danger : Theme.Sol);
+        var destination = Painting != TileAttribute.Warp ? ""
+            : WarpTarget is { } t ? $" → mapa {t.Map} ({t.ToX}, {t.ToY})" : " (use /destino)";
+        var mode = AttributeMode ? $"Atributo: {AttributeName(Painting)}{destination}" : $"Camada {Layer + 1}/{map.Layers.Length}: {map.LayerName(Layer)}{above}";
+        Ui.Text(batch, fonts.Body, mode, new Vector2(x, y), AttributeMode ? AttributeColor(Painting) : Theme.Sol);
         y += 20;
         var setName = _palette.Count > 0 ? _palette[_tileset] : "-";
         Ui.Text(batch, fonts.Small, $"Tileset {_tileset + 1}/{_palette.Count}: {setName}", new Vector2(x, y), Theme.TextDim);
@@ -217,7 +261,7 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer)
         var help = Dirty ? "Alterações não salvas · Ctrl+S salva" : "Mapa salvo";
         var fy = panel.Bottom - FooterHeight + 8;
         Ui.Text(batch, fonts.Small, help, new Vector2(x, fy), Dirty ? Theme.Sol : Theme.System);
-        Ui.Text(batch, fonts.Small, "1-9 camada · B bloqueio · Tab/Shift+Tab tileset", new Vector2(x, fy + 18), Theme.TextDim);
+        Ui.Text(batch, fonts.Small, "1-9 camada · B atributos · Tab/Shift+Tab tileset", new Vector2(x, fy + 18), Theme.TextDim);
         Ui.Text(batch, fonts.Small, "Esq pinta · Dir apaga · Roda rola", new Vector2(x, fy + 36), Theme.TextDim);
     }
 

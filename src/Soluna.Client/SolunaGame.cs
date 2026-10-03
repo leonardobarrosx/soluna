@@ -70,6 +70,11 @@ internal sealed class SolunaGame : Game
     private bool _autoRegisterTried;
     private float _retryIn;
     private bool _night = true;
+
+    // Set while walking off a map's edge, until the server answers with the next map.
+    private bool _awaitingTransfer;
+
+    private static readonly string MapCache = Path.Combine(DataPaths.Root, "cache", "maps");
     private float _stageSeconds;
     private Direction? _wanderDir;
     private float _wanderSeconds;
@@ -209,11 +214,32 @@ internal sealed class SolunaGame : Game
                 for (var i = 0; i < count; i++) _inventory.Inventory.Add(r.GetInt());
                 break;
             }
-            case PacketType.MapLoad:
-                _map = MapData.FromBytes(r.GetBlob());
-                _editor.Dirty = false;
-                if (_options.Editor && !_editor.Active) _editor.Toggle(_map);
+            case PacketType.MapChange:
+                OnMapChange(r.GetInt(), r.GetInt(), r.GetInt(), r.GetInt(), (Direction)r.GetByte());
                 break;
+
+            case PacketType.MapRevision:
+            {
+                var id = r.GetInt();
+                var revision = r.GetInt();
+                if (_map != null && id == _map.Id && revision != _map.Revision) Send(PacketType.MapRequest, w => w.Put(id));
+                break;
+            }
+            case PacketType.MapLoad:
+            {
+                var blob = r.GetBlob();
+                ShowMap(MapData.FromBytes(blob));
+                try
+                {
+                    Directory.CreateDirectory(MapCache);
+                    File.WriteAllBytes(Path.Combine(MapCache, $"{_map!.Id}.json"), blob);
+                }
+                catch (IOException)
+                {
+                    // A cache that cannot be written only costs a download next time.
+                }
+                break;
+            }
 
             case PacketType.PlayerJoined:
             {
@@ -241,6 +267,7 @@ internal sealed class SolunaGame : Game
                 break;
             }
             case PacketType.PlayerPosition:
+                _awaitingTransfer = false;
                 _local?.Place(r.GetInt(), r.GetInt(), (Direction)r.GetByte());
                 break;
 
@@ -256,6 +283,54 @@ internal sealed class SolunaGame : Game
                 else if (_others.TryGetValue(id, out var other)) other.Equipment = equipment;
                 break;
             }
+        }
+    }
+
+    /// <summary>
+    /// The server put us on a map: everyone we could see belongs to the old one, our position is the
+    /// new one, and the map comes from the cache when its revision matches, otherwise from the server.
+    /// </summary>
+    private void OnMapChange(int id, int revision, int x, int y, Direction dir)
+    {
+        _awaitingTransfer = false;
+        _others.Clear();
+        _local?.Place(x, y, dir);
+
+        if (_map?.Id == id && _map.Revision == revision) return;
+        var cached = LoadCached(id);
+        if (cached?.Revision == revision)
+        {
+            ShowMap(cached);
+            return;
+        }
+        _map = null;
+        Send(PacketType.MapRequest, w => w.Put(id));
+    }
+
+    private void ShowMap(MapData map)
+    {
+        var changed = _map?.Id != map.Id;
+        _map = map;
+        _editor.Dirty = false;
+        if (changed && _editor.Active)
+        {
+            _editor.Toggle(map);
+            _editor.Toggle(map);
+        }
+        if (_options.Editor && !_editor.Active) _editor.Toggle(map);
+        if (changed) _chat.Add("", $"Você está em {map.Name}.");
+    }
+
+    private static MapData? LoadCached(int id)
+    {
+        try
+        {
+            var path = Path.Combine(MapCache, $"{id}.json");
+            return File.Exists(path) ? MapData.FromBytes(File.ReadAllBytes(path)) : null;
+        }
+        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException or InvalidDataException)
+        {
+            return null;
         }
     }
 
@@ -415,12 +490,33 @@ internal sealed class SolunaGame : Game
         _camera.Follow(_local.Position + new Vector2(Constants.TileSize / 2f), new Vector2(_map.Width, _map.Height) * Constants.TileSize);
     }
 
+    /// <summary>Commands the client handles itself. Returns true when the text was one.</summary>
+    private bool LocalCommand(string text)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts is not ["/destino", ..]) return false;
+
+        if (parts.Length == 4 && int.TryParse(parts[1], out var map) && int.TryParse(parts[2], out var x) && int.TryParse(parts[3], out var y))
+        {
+            _editor.WarpTarget = new Warp { Map = map, ToX = x, ToY = y };
+            _chat.Add("", $"Teleportes pintados levam ao mapa {map} ({x}, {y}).");
+        }
+        else
+        {
+            _chat.Add("", "Use /destino <mapa> <x> <y>, depois B até Teleporte no editor.");
+        }
+        return true;
+    }
+
     private void HandleHotkeys()
     {
         if (_chat.Typing)
         {
             if (_input.Pressed(Keys.Escape)) _chat.Cancel();
-            if (_input.Pressed(Keys.Enter) && _chat.Submit() is { } text) Send(PacketType.ChatSend, w => w.Put(text));
+            if (_input.Pressed(Keys.Enter) && _chat.Submit() is { } text)
+            {
+                if (!LocalCommand(text)) Send(PacketType.ChatSend, w => w.Put(text));
+            }
             return;
         }
 
@@ -459,7 +555,16 @@ internal sealed class SolunaGame : Game
         var (dx, dy) = dir.Delta();
         var tx = local.TileX + dx;
         var ty = local.TileY + dy;
-        if (!_map!.IsWalkable(tx, ty))
+        if (!_map!.InBounds(tx, ty) && _map.Links[dir] > 0)
+        {
+            local.Dir = dir;
+            if (_awaitingTransfer) return;
+            _awaitingTransfer = true;
+            var (ex, ey) = (local.TileX, local.TileY);
+            Send(PacketType.MoveRequest, w => { w.Put((byte)dir); w.Put(ex); w.Put(ey); });
+            return;
+        }
+        if (!_map.IsWalkable(tx, ty))
         {
             local.Dir = dir;
             return;
@@ -614,7 +719,8 @@ internal sealed class SolunaGame : Game
     {
         var pixel = _textures.Pixel;
         var online = _others.Count + 1;
-        var info = $"{map.Name}  ·  {online} online  ·  {_connection.PingMs} ms";
+        var moral = map.Moral == MapMoral.Pvp ? "  ·  PvP" : "";
+        var info = $"{map.Name}{moral}  ·  {online} online  ·  {_connection.PingMs} ms";
         var width = (int)(_fonts.Title.MeasureString(Constants.GameName).X + _fonts.Body.MeasureString(info).X) + 44;
 
         var bar = new Rectangle(12, 12, width, 32);

@@ -26,12 +26,16 @@ Soluna follows the shape of [Crystalshire](https://github.com/RobinPerris/Crysta
 - Character creation: name, body, skin tone, hair style, hair colour and eyes, with a live walking preview
 - Chibi paper-doll characters in RPG Maker style (32x32, 3 frames x 4 directions): body, eyes, hair and every equipped item are separate layers, painted in their colour and stacked at runtime, so changing equipment changes how the character looks to everyone on the map
 - Equipment panel (I): click an item to wear it or take it off. Items are plain JSON in `data/items.json`, sent by the server at login; new characters get the ones marked `starter`
-- Access levels: the first account created on a server is admin and can edit maps (F1) and use `/item <id>`; everyone has `/online` and `/itens`
+- Access levels: the first account created on a server is admin and can edit maps (F1) and use `/item <id>`, `/ir <mapa> [x y]`, `/trazer <nome>`, `/novomapa <largura> <altura> [nome]` and `/mapa` (nome, pvp, seguro, spawn, musica, link cima|baixo|esquerda|direita <id>); everyone has `/online`, `/mapas` and `/itens`
 - `--all-items` on the server gives new characters the whole wardrobe, for trying art out
 - LPC tiles with autotiling for terrain edges and corners; the starter map is a glade with paths, a pond and a pine forest
 - Night mode on by default: the world sits under a dark tint with a soft light around your character (F3 toggles it)
 - Chat, join and leave messages, player names over heads
-- In-game map editor (F1): tile palette, the map's layers (1 to 9), blocked tiles, Ctrl+S saves to the server and every other player on the map receives the change
+- A world of linked maps: walking off an edge with a link carries on into the next map, warp tiles teleport, and each map has a name, a spawn point, PvP or safe, and music. With Pipoya's village, a forest north of it is generated as map 2 and linked to the village's north road
+- Tile types as in Crystalshire: blocked, warp, NPC-avoid and heal (heal acts once there are vitals)
+- Map cache: clients keep maps in `cache/` and download one again only when its revision changes
+- Fixed 20 Hz server tick for everything that happens over time (autosave today, NPCs and regeneration next)
+- In-game map editor (F1): tile palette, the map's layers (1 to 9), B cycles the tile types (warps lead where `/destino <mapa> <x> <y>` says), Ctrl+S saves to the server and everyone on the map reloads it
 - Tiled import: `dotnet run --project src/Soluna.Server -- import map.tmx <id> [name]` turns a Tiled map (CSV or base64, embedded or external tilesets under `assets/tilesets`) into a Soluna map, keeping every layer, moving layers named like `*_up`, `roof` or `tree` (or with an `above` property) over the characters, and working out collision from `collision` layers or, failing that, from water, buildings and trees
 - With the free [Pipoya RPG Tileset](https://pipoya.itch.io/pipoya-rpg-tileset-32x32) extracted into `assets/tilesets/private/`, the server imports Pipoya's sample village as the start map on first run (into `data/maps/private`, which git ignores, since the pack may not be redistributed)
 - Character art sets: creation choices (bodies, races, skins, hair, beards, eyes) come from the set's `options.json`, so a set can be swapped without code changes. With [Pipoya's Character Sprite 32 Generator](https://pipoya.itch.io/pipoya-free-rpg-character-sprites-32x32) extracted into `assets/tilesets/private/`, `python tools/import_pipoya_characters.py` builds a private set from its parts (elf, cat and dog races, beards, hats, weapons, capes) plus matching items in `data/private/items.json`; both stay out of git

@@ -17,6 +17,9 @@ public enum PacketType : byte
     MapSave = 4,
     EquipToggle = 5,
 
+    /// <summary>The client lacks this map (or has an old revision) and asks for it.</summary>
+    MapRequest = 10,
+
     // Server -> Client
     LoginOk = 100,
     MapLoad = 101,
@@ -37,6 +40,15 @@ public enum PacketType : byte
     ItemCatalog = 110,
 
     InventoryUpdate = 111,
+
+    /// <summary>
+    /// The player is now on a map, at a position: map id, revision, x, y, direction. The client draws it
+    /// from its cache when the revision matches, or sends <see cref="MapRequest"/>.
+    /// </summary>
+    MapChange = 112,
+
+    /// <summary>A map the player is on was saved: map id and its new revision.</summary>
+    MapRevision = 113,
 }
 
 /// <summary>What a character slot shows on the select screen.</summary>

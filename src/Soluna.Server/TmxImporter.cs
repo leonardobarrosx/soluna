@@ -13,7 +13,7 @@ namespace Soluna.Server;
 /// those with a custom property above=true, or whose name says so (up, above, fringe, roof, top, tree).
 ///
 /// Collision comes from layers with a custom property collision=true when there are any; otherwise
-/// a heuristic: water blocks unless something is built over it (a bridge), buildings and trees block.
+/// a heuristic: water blocks unless something is built over it (a bridge), buildings and the bases of trees block.
 /// Fix the rest in the editor with B.
 /// </summary>
 internal static partial class TmxImporter
@@ -140,6 +140,12 @@ internal static partial class TmxImporter
             tree[i] = Has(l => TreeName().IsMatch(l.Name), i);
         }
 
+        // Tree layers are mostly canopy drawn over characters, who walk behind it as in RPG Maker;
+        // only the base of each tree (a tree tile with no tree below it) stands in the way.
+        var trunk = new bool[cells];
+        for (var i = 0; i < cells; i++)
+            trunk[i] = tree[i] && (i + map.Width >= cells || !tree[i + map.Width]);
+
         // Something built over water is a bridge or a pier, and so are the built tiles that lead
         // onto it from the shore (a couple of steps out), so those stay walkable.
         var bridge = new bool[cells];
@@ -170,7 +176,7 @@ internal static partial class TmxImporter
         {
             var block = marked
                 ? Has(l => l.Collision, i)
-                : !bridge[i] && (water[i] || built[i] || tree[i]);
+                : !bridge[i] && (water[i] || built[i] || trunk[i]);
             if (!block) continue;
             map.Attributes[i] = (byte)TileAttribute.Blocked;
             blocked++;

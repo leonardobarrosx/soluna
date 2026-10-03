@@ -27,10 +27,21 @@ Console.CancelKeyPress += (_, e) =>
 server.Start(port);
 Log.Info($"{Constants.GameName} server listening on UDP {port}. Ctrl+C to stop.");
 
+// Network events as they come; world steps at a fixed rate, catching up if a step ran late.
+var clock = System.Diagnostics.Stopwatch.StartNew();
+var step = TimeSpan.FromSeconds(1.0 / GameServer.TicksPerSecond);
+var next = clock.Elapsed;
 while (running)
 {
     server.Poll();
-    Thread.Sleep(15);
+    var caughtUp = 0;
+    while (clock.Elapsed >= next && caughtUp++ < 5)
+    {
+        server.Tick();
+        next += step;
+    }
+    if (clock.Elapsed > next + step * 5) next = clock.Elapsed; // fell far behind: skip ahead rather than spiral
+    Thread.Sleep(5);
 }
 
 server.Stop();

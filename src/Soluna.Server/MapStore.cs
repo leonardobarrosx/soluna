@@ -44,6 +44,7 @@ internal sealed class MapStore
             Store(imported, privatePath);
             Log.Info($"Imported Pipoya's sample map as map {id} into {privatePath}.");
         }
+        if (id != StartMapId && !Exists(id)) throw new KeyNotFoundException($"Map {id} does not exist.");
 
         MapData map;
         var path = File.Exists(privatePath) ? privatePath : publicPath;
@@ -60,11 +61,66 @@ internal sealed class MapStore
             Log.Info($"Created starter map at {path}.");
         }
         Store(map, path);
+        if (id == StartMapId) EnsureForest(map);
         return map;
     }
 
-    public void Save(MapData map) =>
+    public bool Exists(int id) =>
+        _maps.ContainsKey(id)
+        || File.Exists(Path.Combine(_privateFolder, $"{id}.json"))
+        || File.Exists(Path.Combine(_folder, $"{id}.json"))
+        || id == StartMapId;
+
+    /// <summary>Every map id on disk, in order.</summary>
+    public IEnumerable<int> Ids() =>
+        new[] { _folder, _privateFolder }
+            .Where(Directory.Exists)
+            .SelectMany(f => Directory.EnumerateFiles(f, "*.json"))
+            .Select(f => int.TryParse(Path.GetFileNameWithoutExtension(f), out var id) ? id : 0)
+            .Where(id => id > 0)
+            .Concat(_maps.Keys)
+            .Distinct()
+            .Order();
+
+    /// <summary>Saves a map with the next revision, so clients know their cached copy is stale.</summary>
+    public void Save(MapData map)
+    {
+        map.Revision++;
         Store(map, _paths.GetValueOrDefault(map.Id) ?? Path.Combine(_folder, $"{map.Id}.json"));
+    }
+
+    /// <summary>
+    /// A new map floored with one tile, using the given tilesets. It is private when they are, like
+    /// any map that depends on art the repository cannot hold.
+    /// </summary>
+    public MapData Create(string name, int width, int height, List<string> tilesets, int floor, int layers, int fringeFrom)
+    {
+        var id = Ids().DefaultIfEmpty(0).Max() + 1;
+        var map = MapData.CreateEmpty(id, name, width, height, layers);
+        map.Tilesets.AddRange(tilesets);
+        map.FringeFrom = fringeFrom;
+        if (floor != TileRef.Empty) Array.Fill(map.Layers[0], floor);
+        var isPrivate = tilesets.Any(t => t.StartsWith("private/", StringComparison.OrdinalIgnoreCase));
+        Store(map, Path.Combine(isPrivate ? _privateFolder : _folder, $"{id}.json"));
+        Log.Info($"Created map {id} '{name}' ({width}x{height}).");
+        return map;
+    }
+
+    /// <summary>
+    /// With Pipoya's village as the start map, adds a forest north of it (map 2) the first time,
+    /// linked to the village's north road, so there is a second map to walk into.
+    /// </summary>
+    private void EnsureForest(MapData village)
+    {
+        if (village.Name != "Vila de Soluna" || Exists(2)) return;
+
+        var forest = ForestMap.Build(village, 2);
+        forest.Links.Down = village.Id;
+        Store(forest, Path.Combine(_privateFolder, "2.json"));
+        village.Links.Up = forest.Id;
+        Save(village);
+        Log.Info("Created the forest north of the village as map 2.");
+    }
 
     /// <summary>Imports a Tiled map and saves it, as private if any of its tilesets is.</summary>
     public MapData Import(string tmxPath, int id, string name)

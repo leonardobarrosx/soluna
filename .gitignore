@@ -15,3 +15,6 @@ data/maps/private/
 
 # Game data that goes with private art (items for a private character set).
 data/private/
+
+# Maps the client keeps between sessions.
+cache/
