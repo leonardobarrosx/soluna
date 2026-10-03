@@ -192,7 +192,7 @@ internal sealed class CreationScreen
         var sheet = _sprites.SheetFor(Look, _preview);
         var frame = SheetLayout.Frame(sheet, dir, true, cycle % 1, (int)cycle % 2 == 0);
 
-        const float scale = 4;
+        var scale = SheetLayout.IsLpc(sheet) ? 4f : 6f;
         var size = new Vector2(frame.Width, frame.Height) * scale;
         var pos = new Vector2(box.Center.X - size.X / 2, box.Bottom - size.Y - 14);
         batch.Draw(pixel, new Rectangle(box.Center.X - 46, box.Bottom - 30, 92, 10), Color.Black * 0.35f);

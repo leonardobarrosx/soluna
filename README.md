@@ -24,7 +24,7 @@ Soluna follows the shape of [Crystalshire](https://github.com/RobinPerris/Crysta
 - Up to three characters per account, Crystalshire style, on a select screen; create, play or delete
 - Characters are saved on logout and every minute: position, look, equipment and inventory survive a server restart
 - Character creation: name, body, skin tone, hair style, hair colour and eyes, with a live walking preview
-- Paper-doll characters: body, head, hair and every equipped item are separate LPC layers, recoloured by palette and stacked at runtime, so changing equipment changes how the character looks to everyone on the map
+- Chibi paper-doll characters in RPG Maker style (32x32, 3 frames x 4 directions): body, eyes, hair and every equipped item are separate layers, painted in their colour and stacked at runtime, so changing equipment changes how the character looks to everyone on the map
 - Equipment panel (I): click an item to wear it or take it off. Items are plain JSON in `data/items.json`, sent by the server at login; new characters get the ones marked `starter`
 - Access levels: the first account created on a server is admin and can edit maps (F1) and use `/item <id>`; everyone has `/online` and `/itens`
 - LPC tiles with autotiling for terrain edges and corners; the starter map is a glade with paths, a pond and a pine forest
@@ -66,7 +66,7 @@ In the editor: 1 to 5 picks the layer (Ground, Mask, Mask2 under characters; Fri
 
 ## Art
 
-Characters and tiles come from the Liberated Pixel Cup projects (CC-BY-SA 3.0 / GPL 3.0, much of it also OGA-BY 3.0) and ship in `assets/` with their credits. `tools/fetch_assets.py` downloads them again from the sources. See [assets/README.md](assets/README.md) for how the paper doll works and how to add art, including packs that cannot be redistributed. RPG Maker's RTP and DLC art is licensed for RPG Maker games only, so it is not used.
+Characters are the layers of IndigoFenix's BoundWorlds Character Maker (CC-BY 4.0), extracted by `tools/extract_chibi.py`. Tiles are the LPC base tiles (CC-BY-SA 3.0 / GPL 3.0), fetched by `tools/fetch_assets.py`. Both ship in `assets/` with their credits. See [assets/README.md](assets/README.md) for how the paper doll works and how to add art, including packs that cannot be redistributed. RPG Maker's RTP and DLC art is licensed for RPG Maker games only, so it is not used.
 
 ## Layout
 
@@ -76,17 +76,17 @@ src/Soluna.Server   console server, accounts (data/accounts, not committed), map
 src/Soluna.Client   MonoGame client, renderer, UI, editor
 data/maps           maps, edited in game
 data/items.json     items and the layers they wear
-assets              LPC art and credits
+assets              character layers, tiles and credits
 tools               asset download script
 ```
 
 ## Next
 
-Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, map warps and several maps, NPCs and combat (the LPC slash and spellcast animations are ready to fetch), then the card duel system that the VB6 version started.
+Encryption for the login (LiteNetLib sends it in the clear, fine on a LAN, not on the internet), items that drop and trade, an autotile brush in the editor, map warps and several maps, chibi-style tiles to match the characters, NPCs and combat, then the card duel system that the VB6 version started.
 
 ## Credits
 
-Architecture inspired by Crystalshire by Robin Perris (MIT). Art by the LPC contributors, credited per file in `assets/`. Built with [MonoGame](https://monogame.net), [LiteNetLib](https://github.com/RevenantX/LiteNetLib) and [FontStashSharp](https://github.com/FontStashSharp/FontStashSharp).
+Architecture inspired by Crystalshire by Robin Perris (MIT). Characters by IndigoFenix, tiles by the LPC contributors, credited in `assets/`. Built with [MonoGame](https://monogame.net), [LiteNetLib](https://github.com/RevenantX/LiteNetLib) and [FontStashSharp](https://github.com/FontStashSharp/FontStashSharp).
 
 ## License
 

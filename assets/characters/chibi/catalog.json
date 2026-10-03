@@ -1,0 +1,98 @@
+{
+ "frame": 32,
+ "layout": "rpgmaker",
+ "sheets": {
+  "amulet": {
+   "file": "amulet.png",
+   "z": 32
+  },
+  "armbands": {
+   "file": "armbands.png",
+   "z": 30
+  },
+  "armor": {
+   "file": "armor.png",
+   "z": 24
+  },
+  "body_f": {
+   "file": "body_f.png",
+   "z": 0
+  },
+  "body_m": {
+   "file": "body_m.png",
+   "z": 0
+  },
+  "cheeks": {
+   "file": "cheeks.png",
+   "z": 1
+  },
+  "dress": {
+   "file": "dress.png",
+   "z": 22
+  },
+  "eyes_blue": {
+   "file": "eyes_blue.png",
+   "z": 2
+  },
+  "eyes_brown": {
+   "file": "eyes_brown.png",
+   "z": 2
+  },
+  "eyes_dark": {
+   "file": "eyes_dark.png",
+   "z": 2
+  },
+  "eyes_green": {
+   "file": "eyes_green.png",
+   "z": 2
+  },
+  "hair_hero": {
+   "file": "hair_hero.png",
+   "z": 40
+  },
+  "hair_medium": {
+   "file": "hair_medium.png",
+   "z": 40
+  },
+  "hair_messy": {
+   "file": "hair_messy.png",
+   "z": 40
+  },
+  "hair_ponytail": {
+   "file": "hair_ponytail.png",
+   "z": 40
+  },
+  "hair_sticks": {
+   "file": "hair_sticks.png",
+   "z": 41
+  },
+  "hair_straight": {
+   "file": "hair_straight.png",
+   "z": 40
+  },
+  "mantle_f": {
+   "file": "mantle_f.png",
+   "z": 23
+  },
+  "mantle_m": {
+   "file": "mantle_m.png",
+   "z": 23
+  },
+  "necklace": {
+   "file": "necklace.png",
+   "z": 31
+  },
+  "pants": {
+   "file": "pants.png",
+   "z": 10
+  },
+  "robe": {
+   "file": "robe.png",
+   "z": 21
+  },
+  "sleeveless": {
+   "file": "sleeveless.png",
+   "z": 20
+  }
+ }
+}

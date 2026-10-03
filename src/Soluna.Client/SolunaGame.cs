@@ -17,9 +17,10 @@ namespace Soluna.Client;
 /// <param name="Walk">Debug: wander around on its own, for testing with several clients.</param>
 /// <param name="Editor">Open the map editor as soon as the map arrives.</param>
 /// <param name="Inventory">Open the equipment panel on entry.</param>
+/// <param name="Creation">After logging in, open character creation instead of the select screen.</param>
 internal sealed record ClientOptions(
     string Host, int Port, string Name, string? User = null, string? Password = null, bool Play = false,
-    string? Screenshot = null, bool Walk = false, bool Editor = false, bool Inventory = false);
+    string? Screenshot = null, bool Walk = false, bool Editor = false, bool Inventory = false, bool Creation = false);
 
 internal enum Stage
 {
@@ -292,6 +293,12 @@ internal sealed class SolunaGame : Game
         _creation = null;
         GoTo(Stage.Select);
 
+        if (_options.Creation)
+        {
+            _creation = new CreationScreen(_sprites, _items, _options.Name);
+            GoTo(Stage.Create);
+            return;
+        }
         if (!_options.Play && !_options.Walk) return;
         if (_select.Slots[0] == null)
             Send(PacketType.CreateCharacter, w => { w.Put((byte)0); w.Put(_options.Name); Appearance.Random(Random.Shared).Write(w); });

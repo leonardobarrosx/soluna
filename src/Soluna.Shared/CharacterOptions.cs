@@ -3,43 +3,37 @@ using LiteNetLib.Utils;
 namespace Soluna.Shared;
 
 /// <summary>
-/// Choices offered at character creation. Values are LPC sheet ids and palette variant names
-/// (see assets/characters/lpc/catalog.json); labels are what the player sees.
+/// Choices offered at character creation. Ids are chibi layer names (see
+/// assets/characters/chibi/catalog.json) or colours; labels are what the player sees.
 /// </summary>
 public static class CharacterOptions
 {
-    public static readonly (string id, string label)[] Bodies = [("male", "Masculino"), ("female", "Feminino")];
+    public static readonly (string id, string label)[] Bodies = [("m", "Masculino"), ("f", "Feminino")];
 
     public static readonly (string id, string label)[] Skins =
     [
-        ("light", "Clara"), ("amber", "Âmbar"), ("olive", "Oliva"), ("taupe", "Morena clara"),
-        ("bronze", "Bronze"), ("brown", "Morena"), ("black", "Negra"),
-        ("lavender", "Lavanda"), ("blue", "Azul"), ("green", "Verde"),
+        ("#f6d2b4", "Clara"), ("#eab793", "Pêssego"), ("#d39a6f", "Dourada"), ("#b57a52", "Morena clara"),
+        ("#94603d", "Morena"), ("#6e432a", "Negra"),
+        ("#b8c4e8", "Lunar"), ("#9fd1b0", "Silvestre"),
     ];
 
     public static readonly (string id, string label)[] HairStyles =
     [
-        ("hair_plain", "Liso"), ("hair_messy1", "Bagunçado"), ("hair_parted", "Repartido"),
-        ("hair_bangs", "Franja"), ("hair_pixie", "Pixie"), ("hair_bob", "Chanel"),
-        ("hair_long", "Longo"), ("hair_ponytail", "Rabo de cavalo"), ("hair_afro", "Black power"),
-        ("hair_spiked", "Espetado"),
+        ("hair_messy", "Bagunçado"), ("hair_hero", "Herói"), ("hair_straight", "Liso"),
+        ("hair_medium", "Médio"), ("hair_ponytail", "Rabo de cavalo"),
     ];
 
     public static readonly (string id, string label)[] HairColors =
     [
-        ("black", "Preto"), ("raven", "Graúna"), ("dark_brown", "Castanho escuro"), ("chestnut", "Castanho"),
-        ("light_brown", "Castanho claro"), ("blonde", "Loiro"), ("platinum", "Platinado"), ("white", "Branco"),
-        ("gray", "Grisalho"), ("redhead", "Ruivo"), ("ginger", "Acobreado"), ("rose", "Rosa"),
-        ("purple", "Roxo"), ("blue", "Azul"), ("green", "Verde"),
+        ("#2a2228", "Preto"), ("#4a3226", "Castanho escuro"), ("#7a4e30", "Castanho"), ("#b07a45", "Mel"),
+        ("#e2c065", "Loiro"), ("#efe3c2", "Platinado"), ("#c9c9d4", "Grisalho"), ("#b4462c", "Ruivo"),
+        ("#d97e9a", "Rosa"), ("#7c5cc4", "Lilás"), ("#4f7fc9", "Azul"), ("#5f9e6e", "Verde"),
     ];
 
     public static readonly (string id, string label)[] EyeColors =
     [
-        ("brown", "Castanhos"), ("blue", "Azuis"), ("green", "Verdes"), ("gray", "Cinzas"),
-        ("purple", "Roxos"), ("yellow", "Âmbar"), ("red", "Vermelhos"), ("orange", "Laranja"),
+        ("eyes_brown", "Castanhos"), ("eyes_dark", "Escuros"), ("eyes_blue", "Azuis"), ("eyes_green", "Verdes"),
     ];
-
-    public static string HeadFor(string body) => body == "female" ? "heads_human_female" : "heads_human_male";
 }
 
 /// <summary>How a character was made at creation: indices into <see cref="CharacterOptions"/>.</summary>
@@ -60,9 +54,9 @@ public sealed record Appearance(byte Body, byte Skin, byte Hair, byte HairColor,
 
     public static Appearance Random(Random rng) => new(
         (byte)rng.Next(CharacterOptions.Bodies.Length),
-        (byte)rng.Next(7), // natural skin tones only
+        (byte)rng.Next(6), // natural skin tones only
         (byte)rng.Next(CharacterOptions.HairStyles.Length),
-        (byte)rng.Next(CharacterOptions.HairColors.Length),
+        (byte)rng.Next(9), // natural hair colours only
         (byte)rng.Next(CharacterOptions.EyeColors.Length));
 
     public void Write(NetDataWriter w)

@@ -3,7 +3,7 @@ using Soluna.Shared;
 
 // Usage: Soluna.Client [--host 127.0.0.1] [--port 7171]
 //   [--user name --password secret [--play]]   log in on start, creating the account if needed
-//   [--name Leo] [--walk] [--editor] [--inventory] [--screenshot shot.png]   for testing
+//   [--name Leo] [--walk] [--editor] [--inventory] [--creation] [--screenshot shot.png]   for testing
 var host = "127.0.0.1";
 var port = Constants.DefaultPort;
 string? name = null, user = null, password = null, screenshot = null;
@@ -11,6 +11,7 @@ var walk = args.Contains("--walk");
 var play = args.Contains("--play") || walk;
 var editor = args.Contains("--editor");
 var inventory = args.Contains("--inventory");
+var creation = args.Contains("--creation");
 
 for (var i = 0; i < args.Length - 1; i++)
 {
@@ -33,5 +34,5 @@ if (walk && user == null && name != null)
 }
 
 using var game = new SolunaGame(new ClientOptions(
-    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory));
+    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory, creation));
 game.Run();

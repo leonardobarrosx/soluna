@@ -222,6 +222,24 @@ internal static class PlaceholderArt
         return canvas.ToTexture(device);
     }
 
+    /// <summary>A soft dark ellipse for under a character's feet.</summary>
+    public static Texture2D Shadow(GraphicsDevice device)
+    {
+        const int w = 24, h = 8;
+        var data = new Color[w * h];
+        for (var y = 0; y < h; y++)
+        for (var x = 0; x < w; x++)
+        {
+            var dx = (x + 0.5f) / w * 2 - 1;
+            var dy = (y + 0.5f) / h * 2 - 1;
+            var d = MathF.Sqrt(dx * dx + dy * dy);
+            data[y * w + x] = Color.Black * (Math.Clamp(1 - d, 0, 1) * 0.55f);
+        }
+        var texture = new Texture2D(device, w, h);
+        texture.SetData(data);
+        return texture;
+    }
+
     /// <summary>Radial mask: clear in the middle, opaque at the edge. Drawn tinted as the night overlay.</summary>
     public static Texture2D LightMask(GraphicsDevice device, float inner, float outer)
     {

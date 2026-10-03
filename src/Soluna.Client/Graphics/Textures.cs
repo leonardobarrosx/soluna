@@ -15,6 +15,8 @@ internal sealed class Textures(GraphicsDevice device)
 
     public Texture2D Pixel { get; } = CreatePixel(device);
 
+    public Texture2D Shadow { get; } = PlaceholderArt.Shadow(device);
+
     public static string TilesetFolder => Path.Combine(DataPaths.Assets, "tilesets");
 
     public static string CharacterFolder => Path.Combine(DataPaths.Assets, "characters");

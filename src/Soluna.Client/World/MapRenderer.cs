@@ -45,6 +45,8 @@ internal sealed class MapRenderer(Textures textures, Sprites sprites)
     {
         var sheet = sprites.SheetFor(character.Look, character.Equipment);
         var frame = SheetLayout.Frame(sheet, character.Dir, character.Moving, character.Progress, character.LeftFoot);
+        var shadow = textures.Shadow;
+        batch.Draw(shadow, character.Position + new Vector2((S - shadow.Width) / 2f, S - shadow.Height + 1), Color.White);
         batch.Draw(sheet, character.Position + SheetLayout.Offset(sheet), frame, Color.White);
     }
 

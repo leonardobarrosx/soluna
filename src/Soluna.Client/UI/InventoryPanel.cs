@@ -13,8 +13,14 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
     private const int RowHeight = 26;
     private const int ListTop = 232;
 
-    private static readonly (EquipSlot slot, string label)[] Slots =
-        [(EquipSlot.Head, "Cabeça"), (EquipSlot.Torso, "Torso"), (EquipSlot.Legs, "Pernas"), (EquipSlot.Feet, "Pés")];
+    private static readonly (EquipSlot slot, string label)[] AllSlots =
+    [
+        (EquipSlot.Head, "Cabeça"), (EquipSlot.Torso, "Torso"), (EquipSlot.Legs, "Pernas"),
+        (EquipSlot.Feet, "Pés"), (EquipSlot.Neck, "Pescoço"), (EquipSlot.Arms, "Braços"),
+    ];
+
+    /// <summary>Only the slots some item can go in, so the panel never lists a slot that is always empty.</summary>
+    private IEnumerable<(EquipSlot slot, string label)> Slots => AllSlots.Where(s => items.All.Any(i => i.Slot == s.slot));
 
     private int _hover = -1;
 
@@ -64,8 +70,8 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
         {
             var worn = items.Get(me.Equipment[slot]);
             Ui.Text(batch, fonts.Small, label, new Vector2(x + 124, y), Theme.TextDim);
-            Ui.Text(batch, fonts.Body, worn?.Name ?? "-", new Vector2(x + 124, y + 15), worn != null ? Theme.Text : Theme.TextDim);
-            y += 37;
+            Ui.Text(batch, fonts.Small, worn?.Name ?? "-", new Vector2(x + 124, y + 13), worn != null ? Theme.Text : Theme.TextDim);
+            y += 30;
         }
 
         Ui.Text(batch, fonts.Small, "Inventário  ·  clique para vestir ou tirar", new Vector2(x, panel.Y + ListTop - 22), Theme.TextDim);
@@ -79,7 +85,7 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
             if (i == _hover) batch.Draw(pixel, rect, Theme.PanelRaised);
             if (worn) batch.Draw(pixel, new Rectangle(rect.X, rect.Y, 3, rect.Height), Theme.Sol);
             Ui.Text(batch, fonts.Body, item.Name, new Vector2(rect.X + 10, rect.Y + 4), worn ? Theme.Sol : Theme.Text);
-            var tag = Slots.First(s => s.slot == item.Slot).label;
+            var tag = AllSlots.First(s => s.slot == item.Slot).label;
             var tagSize = fonts.Small.MeasureString(tag);
             Ui.Text(batch, fonts.Small, tag, new Vector2(rect.Right - tagSize.X - 8, rect.Y + 6), Theme.TextDim);
         }

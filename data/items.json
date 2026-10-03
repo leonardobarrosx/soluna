@@ -1,18 +1,20 @@
 [
-  { "id": 1, "name": "Camisa de linho", "slot": "Torso", "sheet": "torso_clothes_shortsleeve", "colors": ["white"], "starter": true },
-  { "id": 2, "name": "Camisa de lã azul", "slot": "Torso", "sheet": "torso_clothes_longsleeve", "colors": ["navy"] },
-  { "id": 3, "name": "Blusa lavanda", "slot": "Torso", "sheet": "torso_clothes_longsleeve", "colors": ["lavender"], "starter": true },
-  { "id": 4, "name": "Colete de couro", "slot": "Torso", "sheet": "torso_armour_leather", "colors": ["leather", "steel"] },
-  { "id": 5, "name": "Peitoral de aço", "slot": "Torso", "sheet": "torso_armour_plate", "colors": ["steel"] },
-  { "id": 6, "name": "Peitoral dourado", "slot": "Torso", "sheet": "torso_armour_plate", "colors": ["gold"] },
+  { "id": 1, "name": "Regata de linho", "slot": "Torso", "sheet": "sleeveless", "colors": ["#d8d2c4"], "starter": true },
+  { "id": 2, "name": "Regata verde-musgo", "slot": "Torso", "sheet": "sleeveless", "colors": ["#5e7a55"] },
+  { "id": 3, "name": "Túnica de viajante", "slot": "Torso", "sheet": "robe", "colors": ["#3f5f8a"], "starter": true },
+  { "id": 4, "name": "Túnica carmim", "slot": "Torso", "sheet": "robe", "colors": ["#8c2f39"] },
+  { "id": 5, "name": "Vestido de lua", "slot": "Torso", "sheet": "dress", "colors": ["#6a5aa8"] },
+  { "id": 6, "name": "Manto do aprendiz", "slot": "Torso", "sheet": "mantle", "colors": ["#4b3a78"] },
+  { "id": 7, "name": "Manto do sol", "slot": "Torso", "sheet": "mantle", "colors": ["#c98a2e"] },
+  { "id": 8, "name": "Armadura de aço", "slot": "Torso", "sheet": "armor", "colors": [] },
 
-  { "id": 20, "name": "Calça de viagem", "slot": "Legs", "sheet": "legs_pants", "colors": ["brown"], "starter": true },
-  { "id": 21, "name": "Calça escura", "slot": "Legs", "sheet": "legs_pants", "colors": ["charcoal"] },
-  { "id": 22, "name": "Saia vinho", "slot": "Legs", "sheet": "legs_skirts_plain", "colors": ["maroon"], "starter": true },
+  { "id": 20, "name": "Calça de viagem", "slot": "Legs", "sheet": "pants", "colors": ["#4a3a2c"], "starter": true },
+  { "id": 21, "name": "Calça escura", "slot": "Legs", "sheet": "pants", "colors": ["#2c2f3a"] },
+  { "id": 22, "name": "Calça clara", "slot": "Legs", "sheet": "pants", "colors": ["#b9b2a0"] },
 
-  { "id": 40, "name": "Sapatos simples", "slot": "Feet", "sheet": "feet_shoes_basic", "colors": ["black"], "starter": true },
-  { "id": 41, "name": "Botas de couro", "slot": "Feet", "sheet": "feet_boots_basic", "colors": ["leather"] },
+  { "id": 40, "name": "Colar de pérolas", "slot": "Neck", "sheet": "necklace", "colors": [] },
+  { "id": 41, "name": "Amuleto solar", "slot": "Neck", "sheet": "amulet", "colors": [] },
 
-  { "id": 60, "name": "Capuz verde", "slot": "Head", "sheet": "hat_hood_cloth", "colors": ["forest"] },
-  { "id": 61, "name": "Chapéu de mago", "slot": "Head", "sheet": "hat_magic_wizard", "colors": [] }
+  { "id": 60, "name": "Braçadeiras de ouro", "slot": "Arms", "sheet": "armbands", "colors": [] },
+  { "id": 61, "name": "Braçadeiras de prata", "slot": "Arms", "sheet": "armbands", "colors": ["#c9ccd6"] }
 ]

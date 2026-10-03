@@ -9,11 +9,13 @@ public enum EquipSlot : byte
     Torso = 1,
     Legs = 2,
     Feet = 3,
+    Neck = 4,
+    Arms = 5,
 }
 
 /// <summary>
-/// An item from data/items.json. Wearables point at an LPC sheet and the palette
-/// variant for each of its colour channels, which is how equipping changes the sprite.
+/// An item from data/items.json. Wearables point at a character layer and the colour to
+/// paint it (empty keeps the drawn colours), which is how equipping changes the sprite.
 /// </summary>
 public sealed class ItemDef
 {
@@ -30,7 +32,7 @@ public sealed class ItemDef
 /// <summary>Item ids worn in each <see cref="EquipSlot"/>; 0 means the slot is empty.</summary>
 public sealed class Equipment
 {
-    public const int SlotCount = 4;
+    public const int SlotCount = 6;
 
     private readonly int[] _items = new int[SlotCount];
 

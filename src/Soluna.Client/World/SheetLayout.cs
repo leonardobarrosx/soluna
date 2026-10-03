@@ -14,13 +14,15 @@ internal static class SheetLayout
 {
     private const int S = Constants.TileSize;
 
-    public static bool IsLpc(Texture2D sheet) => sheet.Width / CharacterSprites.Columns == sheet.Height / CharacterSprites.Rows;
+    private const int LpcColumns = 9, LpcRows = 4;
+
+    public static bool IsLpc(Texture2D sheet) => sheet.Width / LpcColumns == sheet.Height / LpcRows;
 
     public static Rectangle Frame(Texture2D sheet, Direction dir, bool moving, float progress, bool leftFoot)
     {
         if (IsLpc(sheet))
         {
-            var size = sheet.Width / CharacterSprites.Columns;
+            var size = sheet.Width / LpcColumns;
             var row = dir switch { Direction.Up => 0, Direction.Left => 1, Direction.Down => 2, _ => 3 };
             // One tile is half a walk cycle: four frames, the other half on the next step.
             var col = moving ? 1 + (leftFoot ? 0 : 4) + Math.Min(3, (int)(progress * 4)) : 0;
@@ -38,7 +40,7 @@ internal static class SheetLayout
     {
         if (IsLpc(sheet))
         {
-            var size = sheet.Width / CharacterSprites.Columns;
+            var size = sheet.Width / LpcColumns;
             // LPC feet sit a few pixels above the frame's bottom.
             return new Vector2((S - size) / 2f, S - size + 3);
         }
@@ -48,5 +50,5 @@ internal static class SheetLayout
     }
 
     /// <summary>Distance from the drawn frame's top to the top of the head.</summary>
-    public static float HeadTop(Texture2D sheet) => IsLpc(sheet) ? 12 : 0;
+    public static float HeadTop(Texture2D sheet) => IsLpc(sheet) ? 12 : 2;
 }
