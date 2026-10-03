@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+
+# Art packs are licensed to use, not to redistribute.
+assets/*
+!assets/README.md

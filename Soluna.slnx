@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Soluna.Client/Soluna.Client.csproj" />
+    <Project Path="src/Soluna.Server/Soluna.Server.csproj" />
+    <Project Path="src/Soluna.Shared/Soluna.Shared.csproj" />
+  </Folder>
+</Solution>
