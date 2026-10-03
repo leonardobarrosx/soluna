@@ -73,11 +73,35 @@ internal sealed class Textures(GraphicsDevice device)
         return sheet;
     }
 
+    /// <summary>
+    /// Drops every cached texture loaded from a file under assets/, so the next use reads it again.
+    /// Call outside Draw: textures in use this frame are disposed.
+    /// </summary>
+    public void Forget(string assetPath)
+    {
+        var tileset = assetPath.StartsWith("tilesets/") ? assetPath["tilesets/".Length..] : null;
+        if (tileset != null && _tilesets.Remove(tileset, out var t) && t != _missing) t.Dispose();
+        if (_sheets.Remove(assetPath, out var s)) s?.Dispose();
+        if (!assetPath.StartsWith("characters/")) return;
+        foreach (var c in _characters.Values) c.Dispose();
+        _characters.Clear();
+    }
+
+    /// <summary>An uncached texture from PNG bytes, for previews; the caller disposes it.</summary>
+    public Texture2D FromBytes(byte[] data)
+    {
+        using var stream = new MemoryStream(data);
+        return Premultiply(Texture2D.FromStream(device, stream));
+    }
+
     private Texture2D Load(string path)
     {
         using var stream = File.OpenRead(path);
-        var texture = Texture2D.FromStream(device, stream);
+        return Premultiply(Texture2D.FromStream(device, stream));
+    }
 
+    private static Texture2D Premultiply(Texture2D texture)
+    {
         // FromStream gives straight alpha; SpriteBatch blends premultiplied.
         var data = new Color[texture.Width * texture.Height];
         texture.GetData(data);

@@ -18,4 +18,6 @@ internal sealed class Sprites(CharacterSprites dolls, Textures textures)
     public void Trim() => dolls.Trim();
 
     public void Clear() => dolls.Clear();
+
+    public void Reload() => dolls.Reload();
 }

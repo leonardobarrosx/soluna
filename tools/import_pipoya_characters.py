@@ -24,11 +24,25 @@ import xml.etree.ElementTree as ET
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 # The game whose content this builds: games/<SOLUNA_GAME>, soluna by default.
 GAME = ROOT / "games" / os.environ.get("SOLUNA_GAME", "soluna")
-SOURCE = next((GAME / "assets" / "tilesets" / "private").glob("**/pipoya32x32_characters"), None)
+# Raw packs live in assets/sources (never sent to players); older setups kept them in tilesets/private.
+SOURCE_DIRS = [GAME / "assets" / "sources", GAME / "assets" / "tilesets" / "private"]
+
+
+def find(pattern):
+    """The first path matching a glob pattern in any of the source folders."""
+    for folder in SOURCE_DIRS:
+        if folder.exists():
+            match = next(folder.glob(pattern), None)
+            if match:
+                return match
+    return None
+
+
+SOURCE = find("**/pipoya32x32_characters")
+SPRITES = find("**/PIPOYA FREE RPG Character Sprites 32x32/**/Enemy")
 OUT = GAME / "assets" / "characters" / "private" / "pipoya"
 ITEMS = GAME / "data" / "private" / "items.json"
 NPCS = GAME / "data" / "private" / "npcs.json"
-SPRITES = next((GAME / "assets" / "tilesets" / "private").glob("PIPOYA FREE RPG Character Sprites 32x32/**/Enemy"), None)
 
 LOSSY = {"Åù": "女", "Æj": "男", "ïñùp": "共用", "û+": "目", "ò×": "服", "ö»": "髪"}
 

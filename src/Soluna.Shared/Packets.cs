@@ -29,6 +29,12 @@ public enum PacketType : byte
     /// <summary>Admin: which maps the game has.</summary>
     MapListRequest = 13,
 
+    /// <summary>Admin: a file to add to the game: kind, name, shareable, then the bytes.</summary>
+    AssetUpload = 14,
+
+    /// <summary>A game file the client lacks or has an old version of: its path.</summary>
+    AssetRequest = 15,
+
     // Server -> Client
     LoginOk = 100,
     MapLoad = 101,
@@ -82,6 +88,15 @@ public enum PacketType : byte
 
     /// <summary>The game's maps: count, then id and name of each.</summary>
     MapList = 121,
+
+    /// <summary>Every game file players need: count, then path, size and hash of each.</summary>
+    AssetManifest = 122,
+
+    /// <summary>A game file: path, then the bytes.</summary>
+    AssetData = 123,
+
+    /// <summary>A game file was added or replaced: path, size, hash.</summary>
+    AssetAdded = 124,
 }
 
 /// <summary>What a character slot shows on the select screen.</summary>
@@ -132,8 +147,11 @@ public static class PacketIO
 
     public static byte[] GetBlob(this NetDataReader r)
     {
-        var data = new byte[r.GetInt()];
-        r.GetBytes(data, data.Length);
+        // The length comes off the wire: never trust it past what the packet actually holds.
+        var length = r.GetInt();
+        if (length < 0 || length > r.AvailableBytes) throw new InvalidDataException($"Blob of {length} bytes in a packet with {r.AvailableBytes} left.");
+        var data = new byte[length];
+        r.GetBytes(data, length);
         return data;
     }
 }

@@ -73,14 +73,20 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer, Gui gui
     {
         Active = !Active;
         if (!Active) return;
+        RefreshPalette(map);
+        MapsRequested?.Invoke();
+    }
 
+    /// <summary>The map's tilesets first, then every other one in the game; again after a file is imported.</summary>
+    public void RefreshPalette(MapData map)
+    {
+        var current = _palette.Count > 0 ? _palette[_tileset] : null;
         _palette.Clear();
         _palette.AddRange(map.Tilesets);
         _palette.AddRange(Textures.AvailableTilesets().Where(name => !map.Tilesets.Contains(name)));
-        _tileset = Math.Clamp(_tileset, 0, Math.Max(0, _palette.Count - 1));
+        _tileset = current != null && _palette.IndexOf(current) is >= 0 and var at ? at : Math.Clamp(_tileset, 0, Math.Max(0, _palette.Count - 1));
         if (_selectedSet.Length == 0 && _palette.Count > 0) _selectedSet = _palette[0];
         FitPalette();
-        MapsRequested?.Invoke();
     }
 
     /// <summary>Widens the panel for wide tilesets, up to 12 tiles; anything wider is cut off.</summary>
@@ -355,6 +361,7 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer, Gui gui
         }
         Ui.Outline(batch, pixel, palette, Theme.Border);
         gui.Label(new Vector2(x, palette.Bottom + 4), "Esquerdo pinta · direito apaga · roda rola", Theme.TextDim, small: true);
+        gui.Label(new Vector2(x, palette.Bottom + 22), "Tileset novo: arraste o PNG para a janela", Theme.TextDim, small: true);
     }
 
     private void DrawAttributesMode(MapData map, Character local, int x, int width, int top)

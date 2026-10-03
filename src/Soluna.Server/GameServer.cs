@@ -178,6 +178,8 @@ internal sealed partial class GameServer
                     case PacketType.Attack: HandleAttack(player, reader); break;
                     case PacketType.ContentSave: HandleContentSave(player, reader); break;
                     case PacketType.MapListRequest: HandleMapList(player); break;
+                    case PacketType.AssetUpload: HandleAssetUpload(player, reader); break;
+                    case PacketType.AssetRequest: HandleAssetRequest(session, reader); break;
                     default: Log.Warn($"Unexpected {type} from {player.Name}."); break;
                 }
                 return;
@@ -190,6 +192,7 @@ internal sealed partial class GameServer
                 case PacketType.CreateCharacter: HandleCreate(session, reader); break;
                 case PacketType.DeleteCharacter: HandleDelete(session, reader); break;
                 case PacketType.PlayCharacter: HandlePlay(session, reader); break;
+                case PacketType.AssetRequest when session.Account != null: HandleAssetRequest(session, reader); break;
                 default: Log.Warn($"Unexpected {type} from {peer} before entering the world."); break;
             }
         }
@@ -247,6 +250,7 @@ internal sealed partial class GameServer
         var npcs = PacketIO.Begin(PacketType.NpcCatalog);
         npcs.Put(_npcs.Json);
         session.Peer.Send(npcs, DeliveryMethod.ReliableOrdered);
+        SendAssetManifest(session);
         SendCharacterList(session);
         Log.Info($"'{account.Username}' logged in.");
     }

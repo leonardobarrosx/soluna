@@ -3,9 +3,9 @@ Builds the NEKONIN (cat folk) character art set from Pipoya's Character Sprite 3
 from the NEKONIN sprite pack, and makes it the active set. Like the human set, it is for local use
 only and goes to folders git ignores.
 
-  input   assets/tilesets/private/.../characters/pipoya32x32_nekonin     parts
-          assets/tilesets/private/.../characters/pipoya32x32_characters  weapons (they fit cat paws)
-          assets/tilesets/private/PIPOYA FREE RPG Character Sprites NEKONIN, ...32x32/Enemy
+  input   assets/sources/.../characters/pipoya32x32_nekonin     parts
+          assets/sources/.../characters/pipoya32x32_characters  weapons (they fit cat paws)
+          assets/sources/.../PIPOYA FREE RPG Character Sprites NEKONIN, ...32x32/Enemy
   output  assets/characters/private/nekonin/   parts/*.png, npcs/*.png, catalog.json, options.json
           assets/characters/private/active     "nekonin"
           data/private/items.json, data/private/npcs.json
@@ -21,16 +21,15 @@ import shutil
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from import_pipoya_characters import NPC_DEFS, STATS, WEAPON_NAMES, WEAPONS, layer_orders, repair  # noqa: E402
+from import_pipoya_characters import NPC_DEFS, STATS, WEAPON_NAMES, WEAPONS, find, layer_orders, repair  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 # The game whose content this builds: games/<SOLUNA_GAME>, soluna by default.
 GAME = ROOT / "games" / os.environ.get("SOLUNA_GAME", "soluna")
-PRIVATE = GAME / "assets" / "tilesets" / "private"
-SOURCE = next(PRIVATE.glob("**/pipoya32x32_nekonin"), None)
-HUMANS = next(PRIVATE.glob("**/pipoya32x32_characters"), None)
-NEKONIN_SPRITES = next(PRIVATE.glob("PIPOYA FREE RPG Character Sprites NEKONIN/**/pipo-nekonin001.png"), None)
-MONSTERS = next(PRIVATE.glob("PIPOYA FREE RPG Character Sprites 32x32/**/Enemy"), None)
+SOURCE = find("**/pipoya32x32_nekonin")
+HUMANS = find("**/pipoya32x32_characters")
+NEKONIN_SPRITES = find("**/PIPOYA FREE RPG Character Sprites NEKONIN/**/pipo-nekonin001.png")
+MONSTERS = find("**/PIPOYA FREE RPG Character Sprites 32x32/**/Enemy")
 OUT = GAME / "assets" / "characters" / "private" / "nekonin"
 ITEMS = GAME / "data" / "private" / "items.json"
 NPCS = GAME / "data" / "private" / "npcs.json"

@@ -53,6 +53,8 @@ public sealed class CharacterOptions
     /// <summary>The options of the active art set, loaded once.</summary>
     public static CharacterOptions Current => _current ??= Load(Path.Combine(CharacterArt.Folder, "options.json"));
 
+    internal static void Forget() => _current = null;
+
     public static CharacterOptions Load(string path)
     {
         if (!File.Exists(path)) return new CharacterOptions();
@@ -68,7 +70,16 @@ public sealed class CharacterOptions
 /// </summary>
 public static class CharacterArt
 {
-    public static string Folder { get; } = Find();
+    private static string? _folder;
+
+    public static string Folder => _folder ??= Find();
+
+    /// <summary>Looks for the active set again, after files arrived from the server or were imported.</summary>
+    public static void Refresh()
+    {
+        _folder = null;
+        CharacterOptions.Forget();
+    }
 
     private static string Find()
     {

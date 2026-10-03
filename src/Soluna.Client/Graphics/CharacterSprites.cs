@@ -21,8 +21,8 @@ internal sealed class CharacterSprites
 
     private readonly GraphicsDevice _device;
     private readonly ItemCatalog _items;
-    private readonly string _folder = CharacterArt.Folder;
-    private readonly Catalog? _catalog;
+    private string _folder = CharacterArt.Folder;
+    private Catalog? _catalog;
     private readonly Dictionary<string, Layer> _layers = [];
     private readonly Dictionary<string, Texture2D> _sheets = [];
 
@@ -30,9 +30,20 @@ internal sealed class CharacterSprites
     {
         _device = device;
         _items = items;
+        Reload();
+    }
+
+    /// <summary>Reads the active art set again, after its files changed. Same rule as <see cref="Trim"/>.</summary>
+    public void Reload()
+    {
+        Clear();
+        _layers.Clear();
+        CharacterArt.Refresh();
+        _folder = CharacterArt.Folder;
         var path = Path.Combine(_folder, "catalog.json");
-        if (File.Exists(path))
-            _catalog = JsonSerializer.Deserialize<Catalog>(File.ReadAllText(path), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        _catalog = File.Exists(path)
+            ? JsonSerializer.Deserialize<Catalog>(File.ReadAllText(path), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            : null;
     }
 
     /// <summary>False when no character art is installed; callers fall back to placeholder art.</summary>

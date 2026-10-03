@@ -19,10 +19,11 @@ namespace Soluna.Client;
 /// <param name="Inventory">Open the equipment panel on entry.</param>
 /// <param name="Creation">After logging in, open character creation instead of the select screen.</param>
 /// <param name="GameEditorTab">Open the game editor on entry, on this tab ("items" or "npcs").</param>
+/// <param name="Import">Open the import dialog on this file on entry, as if it had been dropped on the window.</param>
 internal sealed record ClientOptions(
     string Host, int Port, string Name, string? User = null, string? Password = null, bool Play = false,
     string? Screenshot = null, bool Walk = false, bool Editor = false, bool Inventory = false, bool Creation = false,
-    string? GameEditorTab = null, string? EditorMode = null);
+    string? GameEditorTab = null, string? EditorMode = null, string? Import = null);
 
 internal enum Stage
 {
@@ -58,6 +59,10 @@ internal sealed class SolunaGame : Game
     private readonly Hud _hud = new();
     private Gui _gui = null!;
     private GameEditor _gameEditor = null!;
+    private ImportDialog _import = null!;
+    private AssetSync _assets = null!;
+    private string? _pendingImport;
+    private bool _autoPlay;
     private readonly FloatingText _floating = new();
     private float _nextAttackIn;
 
@@ -109,9 +114,16 @@ internal sealed class SolunaGame : Game
             {
                 case Stage.Login: _login.OnTextInput(e.Character); break;
                 case Stage.Create: _creation?.OnTextInput(e.Character); break;
-                case Stage.World when _gameEditor.Open || _editor.Active && !_chat.Typing: _gui.OnTextInput(e.Character); break;
+                case Stage.World when _import.Open || _gameEditor.Open || _editor.Active && !_chat.Typing: _gui.OnTextInput(e.Character); break;
                 case Stage.World: _chat.OnTextInput(e.Character); break;
             }
+        };
+        // Dropping a PNG on the window is how admins add tilesets and sprites to the game.
+        Window.FileDrop += (_, e) =>
+        {
+            if (_stage != Stage.World || e.Files.Length == 0) return;
+            if (_access == 0) _chat.Add("", "Só administradores podem importar arquivos.");
+            else _import.Show(e.Files[0]);
         };
         Window.ClientSizeChanged += (_, _) =>
         {
@@ -155,6 +167,18 @@ internal sealed class SolunaGame : Game
                 w.PutBlob(System.Text.Encoding.UTF8.GetBytes(json));
             }),
         };
+        _import = new ImportDialog(_gui, _textures)
+        {
+            Upload = (kind, name, shareable, data) => Send(PacketType.AssetUpload, w =>
+            {
+                w.Put((byte)kind);
+                w.Put(name);
+                w.Put(shareable);
+                w.PutBlob(data);
+            }),
+        };
+        _assets = new AssetSync(path => Send(PacketType.AssetRequest, w => w.Put(path)));
+        if (_options.Import != null) _pendingImport = _options.Import;
         Connect();
     }
 
@@ -214,6 +238,21 @@ internal sealed class SolunaGame : Game
         {
             case PacketType.Refused:
                 OnRefused(r.GetString());
+                break;
+
+            case PacketType.AssetManifest:
+            {
+                var count = r.GetInt();
+                var entries = new List<(string, long, string)>(count);
+                for (var i = 0; i < count; i++) entries.Add((r.GetString(), r.GetLong(), r.GetString()));
+                _assets.OnManifest(entries);
+                break;
+            }
+            case PacketType.AssetData:
+                _assets.OnData(r.GetString(), r.GetBlob());
+                break;
+            case PacketType.AssetAdded:
+                _assets.OnAdded(r.GetString(), r.GetLong(), r.GetString());
                 break;
 
             case PacketType.ItemCatalog:
@@ -486,7 +525,13 @@ internal sealed class SolunaGame : Game
             GoTo(Stage.Create);
             return;
         }
-        if (!_options.Play && !_options.Walk) return;
+        _autoPlay = _options.Play || _options.Walk;
+    }
+
+    /// <summary>Test runs enter the world on their own, once the game files are in.</summary>
+    private void AutoPlay()
+    {
+        _autoPlay = false;
         if (_select.Slots[0] == null)
             Send(PacketType.CreateCharacter, w => { w.Put((byte)0); w.Put(_options.Name); TestLook().Write(w); });
         else
@@ -514,6 +559,7 @@ internal sealed class SolunaGame : Game
         _input.Update(IsActive && _options.Screenshot == null);
         _sprites.Trim();
         _connection.Poll();
+        ApplyAssetChanges();
         _camera.Viewport = Screen;
 
         if (!_connection.IsConnected && !_connecting)
@@ -548,8 +594,14 @@ internal sealed class SolunaGame : Game
 
     private void UpdateSelect(float dt)
     {
+        if (_autoPlay && !_assets.Busy) AutoPlay();
         var action = _select.Update(_input, Screen, dt);
         var slot = (byte)_select.Slot;
+        if (_assets.Busy && action is SelectAction.Play or SelectAction.Create)
+        {
+            _select.Message = "Aguarde: ainda chegando arquivos do jogo.";
+            return;
+        }
         switch (action)
         {
             case SelectAction.Play:
@@ -590,10 +642,17 @@ internal sealed class SolunaGame : Game
 
     private void UpdateWorld(float dt)
     {
-        // The game editor takes the keyboard and mouse while open; the world keeps going behind it.
-        if (_gameEditor.Open)
+        if (_pendingImport != null && _access > 0 && _stageSeconds > 1)
         {
-            if (_input.Pressed(Keys.F2) || _input.Pressed(Keys.Escape) && !_gui.Typing) _gameEditor.Toggle();
+            _import.Show(_pendingImport);
+            _pendingImport = null;
+        }
+
+        // The game editor and the import dialog take the keyboard and mouse while open; the world keeps going behind.
+        if (_gameEditor.Open || _import.Open)
+        {
+            if (_import.Open && _input.Pressed(Keys.Escape)) _import.Close();
+            else if (_gameEditor.Open && (_input.Pressed(Keys.F2) || _input.Pressed(Keys.Escape) && !_gui.Typing)) _gameEditor.Toggle();
             if (_map == null || _local == null) return;
             _local.Update(dt * 1000);
             foreach (var other in _others.Values) other.Update(dt * 1000);
@@ -802,6 +861,7 @@ internal sealed class SolunaGame : Game
                 break;
             case Stage.Select:
                 _select.Draw(_batch, _textures.Pixel, _fonts, Screen);
+                DrawDownload();
                 break;
             case Stage.Create:
                 _creation?.Draw(_batch, _textures.Pixel, _fonts, Screen);
@@ -812,12 +872,13 @@ internal sealed class SolunaGame : Game
                 _hud.Draw(_batch, _textures.Pixel, _fonts);
                 _chat.Draw(_batch, _textures.Pixel, _fonts, Screen);
                 _inventory.Draw(_batch, _textures.Pixel, _fonts, _local!, Screen);
-                if (_gameEditor.Open || _editor.Active)
+                if (_gameEditor.Open || _editor.Active || _import.Open)
                 {
                     var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
                     _gui.Begin(_batch, dt);
                     if (_editor.Active) _editor.DrawPanel(_batch, _map!, Screen, _local!, _npcDefs);
                     if (_gameEditor.Open) _gameEditor.Draw(Screen, _local!.Look, dt);
+                    if (_import.Open) _import.Draw(Screen);
                     _gui.End();
                 }
                 break;
@@ -913,6 +974,30 @@ internal sealed class SolunaGame : Game
             if (_items.Get(id) is { } item) equipment[item.Slot] = id;
         }
         return equipment;
+    }
+
+    /// <summary>A bar at the bottom while game files are still arriving from the server.</summary>
+    private void DrawDownload()
+    {
+        if (!_assets.Busy || _assets.BytesTotal == 0) return;
+        var done = 1f - (float)_assets.BytesLeft / _assets.BytesTotal;
+        var bar = new Rectangle(Screen.X / 2 - 200, Screen.Y - 60, 400, 8);
+        _batch.Draw(_textures.Pixel, bar, Theme.Panel);
+        _batch.Draw(_textures.Pixel, bar with { Width = (int)(bar.Width * done) }, Theme.Luna);
+        var text = $"Baixando arquivos do jogo: {_assets.BytesLeft / 1024} KB restantes";
+        var size = _fonts.Small.MeasureString(text);
+        Ui.Text(_batch, _fonts.Small, text, new Vector2(Screen.X / 2f - size.X / 2, bar.Y - 22), Theme.TextDim);
+    }
+
+    /// <summary>Files that arrived or were imported: caches holding the old ones let go, editors list them.</summary>
+    private void ApplyAssetChanges()
+    {
+        var changed = _assets.TakeChanged();
+        if (changed.Count == 0) return;
+        foreach (var path in changed) _textures.Forget(path);
+        if (changed.Any(p => p.StartsWith("characters/"))) _sprites.Reload();
+        _gameEditor.AssetsChanged();
+        if (_map != null && _editor.Active) _editor.RefreshPalette(_map);
     }
 
     private void DrawStatusBar(MapData map)

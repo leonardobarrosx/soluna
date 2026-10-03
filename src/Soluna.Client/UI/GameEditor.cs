@@ -269,6 +269,7 @@ internal sealed class GameEditor(Gui gui, Textures textures, Sprites sprites, It
         var previewBox = new Rectangle(right.Right - 176, right.Y, 176, 220);
         var sheetTexture = npc.Look != null ? sprites.SheetFor(npc.Look, new Equipment()) : textures.Sheet(npc.Sprite);
         if (sheetTexture != null) DrawWalking(previewBox, sheetTexture, Path.GetFileName(npc.Sprite));
+        gui.Label(new Vector2(previewBox.X, previewBox.Bottom + 10), "Sprite novo: arraste\num PNG 3x4 para a\njanela do jogo.", Theme.TextDim, small: true);
     }
 
     // ---- Helpers ----
@@ -299,7 +300,10 @@ internal sealed class GameEditor(Gui gui, Textures textures, Sprites sprites, It
             .ToList();
     }
 
-    /// <summary>Every 3x4 character sheet under the game's assets, except the paper-doll parts.</summary>
+    /// <summary>Files arrived or were imported: look for sprite sheets again next time the list shows.</summary>
+    public void AssetsChanged() => _sprites = null;
+
+    /// <summary>Every 3x4 character sheet under the game's assets, except the paper-doll parts and raw packs.</summary>
     private static List<string> SpriteSheets()
     {
         var root = DataPaths.Assets;
@@ -308,7 +312,7 @@ internal sealed class GameEditor(Gui gui, Textures textures, Sprites sprites, It
         foreach (var file in Directory.EnumerateFiles(root, "*.png", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-            if (relative.Contains("/parts/") || relative.StartsWith("characters/chibi/") || relative.StartsWith("tilesets/lpc/")) continue;
+            if (relative.StartsWith("sources/") || relative.Contains("/parts/") || relative.StartsWith("characters/chibi/") || relative.StartsWith("tilesets/lpc/")) continue;
             if (PngSize(file) is not { } size || size.w * 4 != size.h * 3) continue;
             found.Add(relative);
         }

@@ -15,6 +15,6 @@ The client builds each character at runtime, paper-doll style: body, eyes and ha
 
 - New character pieces: draw a 96x128 layer on the same grid (it helps to start from `source/npc_builder.pdn`), add it to `catalog.json` with a z order, and give it an item.
 - Your own tilesets: any PNG on a 32x32 grid under `tilesets/` shows up in the editor (Tab cycles them).
-- Art you may use but not redistribute (most itch.io packs, for example [Pipoya](https://pipoya.itch.io/pipoya-rpg-tileset-32x32)): put it under a `private/` folder, such as `tilesets/private/`. Those folders are ignored by git. Every player needs the same files for maps that use them.
+- Art you may use but not redistribute (most itch.io packs, for example [Pipoya](https://pipoya.itch.io/pipoya-rpg-tileset-32x32)): put it under a `private/` folder, such as `tilesets/private/`. Those folders are ignored by git; players still get them, since the server sends every game file to clients at login. Raw packs that are only material for the importers in `tools/` (character generators, zips) go in `sources/private/`, which the server keeps to itself.
 
 RPG Maker's RTP and DLC art is licensed for RPG Maker games only and cannot be used here.
