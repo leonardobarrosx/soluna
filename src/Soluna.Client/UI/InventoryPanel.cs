@@ -17,7 +17,7 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
     [
         (EquipSlot.Head, "Cabeça"), (EquipSlot.Torso, "Torso"), (EquipSlot.Legs, "Pernas"),
         (EquipSlot.Feet, "Pés"), (EquipSlot.Neck, "Pescoço"), (EquipSlot.Arms, "Braços"),
-        (EquipSlot.Weapon, "Arma"), (EquipSlot.Back, "Costas"),
+        (EquipSlot.Weapon, "Arma"), (EquipSlot.Back, "Costas"), (EquipSlot.Face, "Rosto"),
     ];
 
     /// <summary>Only the slots some item can go in, so the panel never lists a slot that is always empty.</summary>

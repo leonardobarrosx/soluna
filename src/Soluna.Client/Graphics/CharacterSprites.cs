@@ -126,7 +126,8 @@ internal sealed class CharacterSprites
         foreach (var (_, layer, color) in layers.OrderBy(l => l.z))
         {
             if (layer.Pixels.Length != output.Length) continue;
-            var tint = color != null ? Hex(color) : (Color?)null;
+            // No colour (or one the set leaves empty, like hair colour for cats) keeps the drawn colours.
+            var tint = Hex(color);
             for (var i = 0; i < output.Length; i++)
             {
                 var src = layer.Pixels[i];
@@ -206,9 +207,10 @@ internal sealed class CharacterSprites
             (byte)(a * 255));
     }
 
-    private static Color Hex(string hex)
+    private static Color? Hex(string? hex)
     {
-        var v = Convert.ToUInt32(hex.TrimStart('#'), 16);
+        if (string.IsNullOrEmpty(hex) || !uint.TryParse(hex.TrimStart('#'), System.Globalization.NumberStyles.HexNumber, null, out var v))
+            return null;
         return new Color((byte)(v >> 16), (byte)(v >> 8), (byte)v);
     }
 

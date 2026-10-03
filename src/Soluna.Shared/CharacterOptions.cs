@@ -43,6 +43,11 @@ public sealed class CharacterOptions
     public int RandomHairColors { get; init; }
     public int RandomEyes { get; init; }
 
+    /// <summary>Names for the creation rows when the set means something else by them (fur for skin, tails for race).</summary>
+    public Dictionary<string, string> Labels { get; init; } = [];
+
+    public string Label(string row, string fallback) => Labels.GetValueOrDefault(row, fallback);
+
     private static CharacterOptions? _current;
 
     /// <summary>The options of the active art set, loaded once.</summary>
@@ -68,11 +73,16 @@ public static class CharacterArt
     private static string Find()
     {
         var root = Path.Combine(DataPaths.Assets, "characters");
-        var privateSet = Directory.Exists(Path.Combine(root, "private"))
-            ? Directory.EnumerateDirectories(Path.Combine(root, "private"))
-                .Where(d => File.Exists(Path.Combine(d, "catalog.json")) && File.Exists(Path.Combine(d, "options.json")))
-                .Order()
-                .FirstOrDefault()
+        var privateRoot = Path.Combine(root, "private");
+        static bool Complete(string d) => File.Exists(Path.Combine(d, "catalog.json")) && File.Exists(Path.Combine(d, "options.json"));
+
+        // The importers write the name of the set they built to private/active; that one wins.
+        var activeFile = Path.Combine(privateRoot, "active");
+        if (File.Exists(activeFile) && Path.Combine(privateRoot, File.ReadAllText(activeFile).Trim()) is var chosen && Complete(chosen))
+            return chosen;
+
+        var privateSet = Directory.Exists(privateRoot)
+            ? Directory.EnumerateDirectories(privateRoot).Where(Complete).Order().FirstOrDefault()
             : null;
         return privateSet ?? Path.Combine(root, "chibi");
     }
@@ -91,9 +101,12 @@ public sealed record Appearance(byte Body, byte Skin, byte Hair, byte HairColor,
     public Choice RaceChoice => Pick(O.Races, Race);
     public string BeardId => Pick(O.Beards, Beard).Id;
 
+    /// <summary>Every choice exists; a list the art set leaves empty (cats have no hair) only accepts 0.</summary>
     public bool IsValid =>
-        Body < O.Bodies.Length && Skin < O.Skins.Length && Hair < O.Hair.Length && HairColor < O.HairColors.Length
-        && Eyes < O.Eyes.Length && Race < O.Races.Length && Beard < O.Beards.Length;
+        Fits(Body, O.Bodies) && Fits(Skin, O.Skins) && Fits(Hair, O.Hair) && Fits(HairColor, O.HairColors)
+        && Fits(Eyes, O.Eyes) && Fits(Race, O.Races) && Fits(Beard, O.Beards);
+
+    private static bool Fits(byte value, Choice[] choices) => value < Math.Max(1, choices.Length);
 
     /// <summary>
     /// A random look with natural colours. A saved look from another art set may point past the end

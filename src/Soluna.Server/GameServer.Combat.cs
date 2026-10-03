@@ -341,7 +341,7 @@ internal sealed partial class GameServer
         if (map.Npcs.Count > 0) return;
         (int id, int count)[] plan = map.Name switch
         {
-            "Vila de Soluna" => [(1, 3), (2, 3), (3, 2), (4, 1), (5, 1)],
+            "Vila de Soluna" => [(1, 3), (2, 3), (3, 2), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1)],
             "Bosque ao Norte" => [(10, 4), (11, 3), (12, 2), (13, 2), (14, 2), (15, 1), (16, 1)],
             _ => [],
         };

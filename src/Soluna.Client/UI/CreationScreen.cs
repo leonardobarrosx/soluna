@@ -48,13 +48,13 @@ internal sealed class CreationScreen
         _rows = new List<(string, int, Choice[])>
         {
             ("Nome", -1, []),
-            ("Corpo", Body, o.Bodies),
-            ("Raça", Race, o.Races),
-            ("Pele", Skin, o.Skins),
-            ("Cabelo", Hair, o.Hair),
-            ("Cor do cabelo", HairColor, o.HairColors),
-            ("Barba", Beard, o.Beards),
-            ("Olhos", Eyes, o.Eyes),
+            (o.Label("bodies", "Corpo"), Body, o.Bodies),
+            (o.Label("races", "Raça"), Race, o.Races),
+            (o.Label("skins", "Pele"), Skin, o.Skins),
+            (o.Label("hair", "Cabelo"), Hair, o.Hair),
+            (o.Label("hairColors", "Cor do cabelo"), HairColor, o.HairColors),
+            (o.Label("beards", "Barba"), Beard, o.Beards),
+            (o.Label("eyes", "Olhos"), Eyes, o.Eyes),
         }.Where(r => r.Item2 < 0 || r.Item3.Length > 1).ToList();
         Randomize();
     }

@@ -13,6 +13,7 @@ public enum EquipSlot : byte
     Arms = 5,
     Weapon = 6,
     Back = 7,
+    Face = 8,
 }
 
 /// <summary>
@@ -38,7 +39,7 @@ public sealed class ItemDef
 /// <summary>Item ids worn in each <see cref="EquipSlot"/>; 0 means the slot is empty.</summary>
 public sealed class Equipment
 {
-    public const int SlotCount = 8;
+    public const int SlotCount = 9;
 
     private readonly int[] _items = new int[SlotCount];
 

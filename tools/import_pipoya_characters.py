@@ -11,7 +11,7 @@ goes to folders git ignores.
 The zip ships Shift-JIS file names; extracted on Windows they come out as cp850 mojibake,
 some of it lossy, so names are repaired first and then matched by pattern.
 
-Usage: python tools/import_pipoya_characters.py
+Usage: python tools/import_pipoya_characters.py   (makes this the active set; tools/import_nekonin.py is the other)
 """
 
 import json
@@ -205,6 +205,7 @@ def main():
 
     write_items(costume_ids, sheets)
     write_npcs()
+    (OUT.parent / "active").write_text("pipoya\n", encoding="utf-8")
     print(f"{len(sheets)} sheets, {sum(len(v) for v in sheets.values())} layers -> {OUT.relative_to(ROOT)}")
 
 
