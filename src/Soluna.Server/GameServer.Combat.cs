@@ -48,7 +48,7 @@ internal sealed partial class GameServer
         foreach (var spawn in map.Npcs)
         {
             if (_npcs.Get(spawn.NpcId) is not { } def) continue;
-            var npc = new NpcInstance { Index = state.Npcs.Count, Def = def, Spawn = spawn };
+            var npc = new NpcInstance { Index = state.Npcs.Count, Def = DungeonGenerator.Scale(def, map.Depth), Spawn = spawn };
             Respawn(map, state, npc, announce: false);
             state.Npcs.Add(npc);
         }
@@ -98,6 +98,7 @@ internal sealed partial class GameServer
     private void TickWorld()
     {
         var now = _clock.ElapsedMilliseconds;
+        TickFortune();
         foreach (var mapId in Players.Select(p => p.MapId).Distinct().ToList())
         {
             var map = _maps.Get(mapId);
@@ -131,6 +132,9 @@ internal sealed partial class GameServer
                 .FirstOrDefault();
         }
         npc.Target = target?.Id ?? 0;
+
+        // Named village services stay at their stalls and altars.
+        if (npc.Def.Behaviour == NpcBehaviour.Friendly) return;
 
         if (target != null && Distance(npc, target) == 1)
         {
@@ -228,6 +232,8 @@ internal sealed partial class GameServer
         {
             if (!npc.Def.Hostile) return;
             npc.Target = player.Id;
+            player.Journey.MeleeHits++;
+            RecordHabit(player, "melee");
             HurtNpc(map, npc, Formulas.Damage(player.AttackPower(_items), npc.Def.Defense, _rng), player);
             return;
         }
@@ -247,8 +253,9 @@ internal sealed partial class GameServer
 
         npc.Alive = false;
         npc.Target = 0;
-        npc.RespawnAtMs = _clock.ElapsedMilliseconds + npc.Def.RespawnSeconds * 1000L;
+        npc.RespawnAtMs = map.Depth > 0 ? long.MaxValue : _clock.ElapsedMilliseconds + npc.Def.RespawnSeconds * 1000L;
         Broadcast(map.Id, NpcRemoved(npc));
+        RewardVictory(by, npc);
         if (npc.Def.Exp > 0)
         {
             Tell(by, $"Você derrotou {npc.Def.Name}. +{npc.Def.Exp} XP");
@@ -266,11 +273,13 @@ internal sealed partial class GameServer
 
         BroadcastChat(player.MapId, "", $"{player.Name} foi derrotado por {by}.");
         Log.Info($"{player.Name} was defeated by {by}.");
+        if (_adventure.DeathResetsLife) Rebirth(player);
         (player.Hp, player.Mp) = (player.MaxHp, player.MaxMp);
         var home = _maps.Get(MapStore.StartMapId);
         Transfer(player, home.Id, home.Spawn.x, home.Spawn.y);
         SendVitals(player);
-        Tell(player, "Você acordou na vila.");
+        Tell(player, _adventure.DeathResetsLife ? "A forma se desfez. As memórias ficaram. Uma nova vida começa." : "Você acordou na vila.");
+        SaveJourney(player);
     }
 
     private void GainExp(Player player, int exp)

@@ -78,6 +78,15 @@ public sealed class MapLinks
     }
 }
 
+public sealed class MapProp
+{
+    public string Sprite { get; set; } = "";
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Width { get; set; } = 2;
+    public int Height { get; set; } = 3;
+}
+
 public sealed class MapData
 {
     public const int DefaultLayerCount = 5;
@@ -90,6 +99,8 @@ public sealed class MapData
 
     /// <summary>Goes up on every save; clients keep maps in a cache and fetch them again only when it changes.</summary>
     public int Revision { get; set; } = 1;
+    public int Depth { get; set; }
+    public int Seed { get; set; }
 
     public MapMoral Moral { get; set; }
 
@@ -101,6 +112,9 @@ public sealed class MapData
     public List<Warp> Warps { get; set; } = [];
 
     public List<NpcSpawn> Npcs { get; set; } = [];
+
+    public List<Landmark> Landmarks { get; set; } = [];
+    public List<MapProp> Props { get; set; } = [];
 
     /// <summary>Tileset file names, indexed by the tileset part of a tile ref.</summary>
     public List<string> Tilesets { get; set; } = [];

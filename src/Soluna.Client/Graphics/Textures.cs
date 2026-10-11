@@ -12,6 +12,13 @@ internal sealed class Textures(GraphicsDevice device)
     private readonly Dictionary<string, Texture2D> _tilesets = [];
     private readonly Dictionary<int, Texture2D> _characters = [];
     private Texture2D? _missing;
+    private readonly Dictionary<string, TerrainEdges?> _terrain = [];
+
+    public TerrainEdges? Terrain(string name)
+    {
+        if (_terrain.TryGetValue(name, out var found)) return found;
+        return _terrain[name] = TextureLayout.Read(Path.Combine(TilesetFolder, name))?.Terrain;
+    }
 
     public Texture2D Pixel { get; } = CreatePixel(device);
 
@@ -79,6 +86,15 @@ internal sealed class Textures(GraphicsDevice device)
     /// </summary>
     public void Forget(string assetPath)
     {
+        // A page/sidecar may supply many sheets; invalidate dependent imports together.
+        if (assetPath.StartsWith("atlases/", StringComparison.OrdinalIgnoreCase) || assetPath.EndsWith(".layout.json", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var texture in _tilesets.Values.Concat(_characters.Values).Concat(_sheets.Values.OfType<Texture2D>()).Distinct())
+                if (texture != _missing) texture.Dispose();
+            _tilesets.Clear(); _characters.Clear(); _sheets.Clear();
+            _terrain.Clear();
+            return;
+        }
         var tileset = assetPath.StartsWith("tilesets/") ? assetPath["tilesets/".Length..] : null;
         if (tileset != null && _tilesets.Remove(tileset, out var t) && t != _missing) t.Dispose();
         if (_sheets.Remove(assetPath, out var s)) s?.Dispose();
@@ -96,8 +112,7 @@ internal sealed class Textures(GraphicsDevice device)
 
     private Texture2D Load(string path)
     {
-        using var stream = File.OpenRead(path);
-        return Premultiply(Texture2D.FromStream(device, stream));
+        return Premultiply(AtlasTextures.Load(device, path));
     }
 
     private static Texture2D Premultiply(Texture2D texture)

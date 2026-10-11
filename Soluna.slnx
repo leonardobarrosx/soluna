@@ -4,4 +4,7 @@
     <Project Path="src/Soluna.Server/Soluna.Server.csproj" />
     <Project Path="src/Soluna.Shared/Soluna.Shared.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Soluna.Tests/Soluna.Tests.csproj" />
+  </Folder>
 </Solution>

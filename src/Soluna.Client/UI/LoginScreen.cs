@@ -83,7 +83,7 @@ internal sealed class LoginScreen
 
         var title = fonts.Title.MeasureString(Constants.GameName);
         Ui.Text(batch, fonts.Title, Constants.GameName, new Vector2(layout.Center.X - title.X / 2, layout.Y + 24), Theme.Luna);
-        const string subtitle = "Entre na sua conta";
+        const string subtitle = "Desperte mais uma vez";
         var sub = fonts.Small.MeasureString(subtitle);
         Ui.Text(batch, fonts.Small, subtitle, new Vector2(layout.Center.X - sub.X / 2, layout.Y + 56), Theme.TextDim);
 
@@ -91,8 +91,8 @@ internal sealed class LoginScreen
         _password.Draw(batch, pixel, fonts, PasswordRect(layout), _focus == 1, _time);
 
         var ready = Online && !Busy;
-        Button(batch, pixel, fonts, LoginButton(layout), "Entrar", ready, primary: true);
-        Button(batch, pixel, fonts, RegisterButton(layout), "Criar conta", ready, primary: false);
+        Button(batch, pixel, fonts, LoginButton(layout), "Continuar a jornada", ready, primary: true);
+        Button(batch, pixel, fonts, RegisterButton(layout), "Começar uma história", ready, primary: false);
 
         var message = Online ? Message : "Conectando ao servidor...";
         if (message.Length > 0)
@@ -114,7 +114,7 @@ internal sealed class LoginScreen
     private static Rectangle Layout(Point screen)
     {
         const int w = 400, h = 340;
-        return new Rectangle((screen.X - w) / 2, (screen.Y - h) / 2 - 20, w, h);
+        return new Rectangle(Math.Max(12, screen.X - w - 70), (screen.Y - h) / 2 + 30, w, h);
     }
 
     private static Rectangle UserRect(Rectangle l) => new(l.X + 32, l.Y + 90, l.Width - 64, 46);

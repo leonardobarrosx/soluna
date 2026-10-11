@@ -9,7 +9,7 @@ internal sealed class Camera
     /// <summary>Top-left of the view in world pixels.</summary>
     public Vector2 Position { get; private set; }
 
-    public float Zoom { get; set; } = 2;
+    public float Zoom { get; set; } = 1.5f;
 
     public Point Viewport { get; set; }
 

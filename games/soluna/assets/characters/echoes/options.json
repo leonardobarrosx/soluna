@@ -1,0 +1,25 @@
+{
+  "body": "blank",
+  "bodies": [
+    {
+      "id": "blank",
+      "label": "Sem forma"
+    }
+  ],
+  "skins": [
+    {
+      "id": "neutral",
+      "label": "Neutro"
+    }
+  ],
+  "hair": [],
+  "hairColors": [],
+  "eyes": [],
+  "races": [
+    {
+      "id": "unformed",
+      "label": "Sem origem"
+    }
+  ],
+  "beards": []
+}

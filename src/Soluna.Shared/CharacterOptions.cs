@@ -95,7 +95,7 @@ public static class CharacterArt
         var privateSet = Directory.Exists(privateRoot)
             ? Directory.EnumerateDirectories(privateRoot).Where(Complete).Order().FirstOrDefault()
             : null;
-        return privateSet ?? Path.Combine(root, "chibi");
+        return privateSet ?? (Complete(Path.Combine(root, "echoes")) ? Path.Combine(root, "echoes") : Path.Combine(root, "chibi"));
     }
 }
 

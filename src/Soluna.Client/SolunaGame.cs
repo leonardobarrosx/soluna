@@ -23,7 +23,7 @@ namespace Soluna.Client;
 internal sealed record ClientOptions(
     string Host, int Port, string Name, string? User = null, string? Password = null, bool Play = false,
     string? Screenshot = null, bool Walk = false, bool Editor = false, bool Inventory = false, bool Creation = false,
-    string? GameEditorTab = null, string? EditorMode = null, string? Import = null);
+    string? GameEditorTab = null, string? EditorMode = null, string? Import = null, bool Journal = false, bool ArtPreview = false);
 
 internal enum Stage
 {
@@ -57,6 +57,10 @@ internal sealed class SolunaGame : Game
     private readonly Dictionary<int, (Character view, NpcDef def)> _npcs = [];
 
     private readonly Hud _hud = new();
+    private readonly JourneyPanel _journey = new();
+    private EvolvingSprites _forms = null!;
+    private float _worldTime;
+    private readonly List<(Vector2 position, float age)> _pulses = [];
     private Gui _gui = null!;
     private GameEditor _gameEditor = null!;
     private ImportDialog _import = null!;
@@ -143,6 +147,7 @@ internal sealed class SolunaGame : Game
     {
         _batch = new SpriteBatch(GraphicsDevice);
         _textures = new Textures(GraphicsDevice);
+        _forms = new EvolvingSprites(GraphicsDevice, _textures);
         _fonts = new Fonts();
         _sprites = new Sprites(new CharacterSprites(GraphicsDevice, _items), _textures);
         _renderer = new MapRenderer(_textures, _sprites);
@@ -179,7 +184,7 @@ internal sealed class SolunaGame : Game
         };
         _assets = new AssetSync(path => Send(PacketType.AssetRequest, w => w.Put(path)));
         if (_options.Import != null) _pendingImport = _options.Import;
-        Connect();
+        if (!_options.ArtPreview) Connect();
     }
 
     protected override void UnloadContent() => _connection.Stop();
@@ -296,6 +301,23 @@ internal sealed class SolunaGame : Game
                 _npcs.Remove(r.GetInt());
                 break;
 
+            case PacketType.Pulse:
+                _pulses.Add((new Vector2(r.GetInt() * 32 + 16, r.GetInt() * 32 + 16), 0));
+                break;
+            case PacketType.Journey:
+                _journey.State = System.Text.Json.JsonSerializer.Deserialize<Journey>(r.GetString()) ?? new();
+                break;
+            case PacketType.AdventureCatalog:
+                _journey.Content = AdventureContent.Parse(r.GetString());
+                break;
+            case PacketType.FormChanged:
+            {
+                var id = r.GetInt();
+                var form = new FormLook(r.GetString(), r.GetString(), r.GetString(), r.GetInt(), r.GetString());
+                if (id == _local?.Id) _local.Form = form;
+                else if (_others.TryGetValue(id, out var changed)) changed.Form = form;
+                break;
+            }
             case PacketType.Vitals:
                 (_hud.Hp, _hud.MaxHp, _hud.Mp, _hud.MaxMp) = (r.GetInt(), r.GetInt(), r.GetInt(), r.GetInt());
                 (_hud.Level, _hud.Exp, _hud.ExpToNext) = (r.GetInt(), r.GetInt(), r.GetInt());
@@ -331,6 +353,7 @@ internal sealed class SolunaGame : Game
                 _local = new Character(me.Id, me.Name, me.Look, me.Equipment);
                 _local.Place(me.X, me.Y, me.Dir);
                 _inventory.Open = _options.Inventory;
+                _journey.Open = _options.Journal;
                 if (_options.GameEditorTab != null && _access > 0) _gameEditor.OpenOn(_options.GameEditorTab);
                 Window.Title = $"{Constants.GameName} · {me.Name}";
                 _chat.Add("", _access > 0 ? "Você é administrador: F1 abre o editor, /item <id> cria itens." : "Bem-vindo a Soluna.");
@@ -437,6 +460,7 @@ internal sealed class SolunaGame : Game
         _awaitingTransfer = false;
         _others.Clear();
         _npcs.Clear();
+        _pulses.Clear();
         _local?.Place(x, y, dir);
 
         if (_map?.Id == id && _map.Revision == revision) return;
@@ -557,7 +581,20 @@ internal sealed class SolunaGame : Game
         var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
         _stageSeconds += dt;
         _input.Update(IsActive && _options.Screenshot == null);
+        if (_options.ArtPreview)
+        {
+            if (_input.Pressed(Keys.Escape)) Exit();
+            base.Update(gameTime);
+            return;
+        }
         _sprites.Trim();
+        _forms.Trim();
+        _worldTime += dt;
+        for (var i = _pulses.Count - 1; i >= 0; i--)
+        {
+            var pulse = _pulses[i]; pulse.age += dt;
+            if (pulse.age >= .55f) _pulses.RemoveAt(i); else _pulses[i] = pulse;
+        }
         _connection.Poll();
         ApplyAssetChanges();
         _camera.Viewport = Screen;
@@ -608,7 +645,7 @@ internal sealed class SolunaGame : Game
                 Send(PacketType.PlayCharacter, w => w.Put(slot));
                 break;
             case SelectAction.Create:
-                _creation = new CreationScreen(_sprites, _items, "");
+                _creation = new CreationScreen(_sprites, _items, "", _journey.Content.EmergentAppearance);
                 GoTo(Stage.Create);
                 break;
             case SelectAction.Delete:
@@ -642,6 +679,16 @@ internal sealed class SolunaGame : Game
 
     private void UpdateWorld(float dt)
     {
+        if (_journey.Open)
+        {
+            if (_input.Pressed(Keys.Escape) || _input.Pressed(Keys.J) || _input.Pressed(Keys.C)) _journey.Open = false;
+            else if (_journey.Update(_input, Screen) is { } request) SendAdventure(request);
+            _local?.Update(dt * 1000);
+            foreach (var other in _others.Values) other.Update(dt * 1000);
+            foreach (var (view, _) in _npcs.Values) view.Update(dt * 1000);
+            _floating.Update(dt);
+            return;
+        }
         if (_pendingImport != null && _access > 0 && _stageSeconds > 1)
         {
             _import.Show(_pendingImport);
@@ -716,6 +763,16 @@ internal sealed class SolunaGame : Game
         }
 
         if (_input.Pressed(Keys.Enter)) _chat.Open();
+        if (_input.Pressed(Keys.J) || _input.Pressed(Keys.C))
+        {
+            _journey.Open = true; _journey.Tab = _input.Pressed(Keys.C) ? 1 : 0;
+            _inventory.Open = false;
+        }
+        if (_input.Pressed(Keys.E)) SendAdventure(new(AdventureAction.Interact));
+        if (_input.Pressed(Keys.Q)) SendAdventure(new(AdventureAction.Skill));
+        if (_input.Pressed(Keys.D1)) SendAdventure(new(AdventureAction.Tonic));
+        if (_input.Pressed(Keys.D2)) SendAdventure(new(AdventureAction.Ether));
+        if (_input.Pressed(Keys.R)) SendAdventure(new(AdventureAction.ReturnHome));
         if (_input.Pressed(Keys.F1) && _map != null)
         {
             if (_access == 0 && !_editor.Active) _chat.Add("", "Só administradores podem editar mapas.");
@@ -844,16 +901,33 @@ internal sealed class SolunaGame : Game
         _editor.Dirty = false;
     }
 
+    private void SendAdventure(AdventureRequest request) => Send(PacketType.AdventureAction, w =>
+    {
+        w.Put((byte)request.Action);
+        if (request.Recipe != null) w.Put(request.Recipe);
+    });
+    private Texture2D PlayerSheet(Character c) => _journey.Content.EmergentAppearance
+        ? _forms.Get(c.Form) : _sprites.SheetFor(c.Look, c.Equipment);
+    private bool NearLandmark(LandmarkKind kind) => _map != null && _local != null && _map.Landmarks.Any(l => l.Kind == kind && Math.Abs(l.X - _local.TileX) + Math.Abs(l.Y - _local.TileY) <= 3);
+
     // ---- Draw ----
 
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(Theme.Background);
 
+        if (_options.ArtPreview)
+        {
+            DrawArtPreview();
+            if (_options.Screenshot != null && _stageSeconds > 1) SaveScreenshot(_options.Screenshot);
+            return;
+        }
+
         var inWorld = _stage == Stage.World && _map != null && _local != null;
         if (inWorld) DrawWorld(_map!, _local!);
 
         _batch.Begin(samplerState: SamplerState.PointClamp);
+        if (!inWorld) DrawTitleBackdrop();
         switch (_stage)
         {
             case Stage.Login:
@@ -871,7 +945,9 @@ internal sealed class SolunaGame : Game
                 DrawStatusBar(_map!);
                 _hud.Draw(_batch, _textures.Pixel, _fonts);
                 _chat.Draw(_batch, _textures.Pixel, _fonts, Screen);
-                _inventory.Draw(_batch, _textures.Pixel, _fonts, _local!, Screen);
+                _inventory.Draw(_batch, _textures.Pixel, _fonts, _local!, Screen, PlayerSheet(_local!));
+                DrawAdventureHud();
+                _journey.Draw(_batch, _textures.Pixel, _fonts, Screen, NearLandmark(LandmarkKind.Workbench), NearLandmark(LandmarkKind.Merchant));
                 if (_gameEditor.Open || _editor.Active || _import.Open)
                 {
                     var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
@@ -892,6 +968,45 @@ internal sealed class SolunaGame : Game
         if (_options.Screenshot != null && shotReady) SaveScreenshot(_options.Screenshot);
     }
 
+    /// <summary>Local art review, using the same import and composition paths as the world and editors.</summary>
+    private void DrawArtPreview()
+    {
+        _batch.Begin(samplerState: SamplerState.PointClamp);
+        Ui.Text(_batch, _fonts.Heading, "SOLUNA  /  ATELIÊ DE ARTE", new Vector2(30, 20), Theme.Sol);
+        Ui.Text(_batch, _fonts.Small, "Quadros reais da engine · sul, oeste, leste, norte · passo, repouso, passo", new Vector2(32, 60), Theme.TextDim);
+        var definitions = NpcCatalog.Load().All.OrderBy(n => n.Id).Take(6).ToArray();
+        for (var i = 0; i < definitions.Length; i++)
+        {
+            var def = definitions[i]; var x = 32 + i * 205;
+            Ui.Text(_batch, _fonts.Body, def.Name, new Vector2(x, 96), Theme.Text);
+            if (_textures.Sheet(def.Sprite) is { } sheet)
+                _batch.Draw(sheet, new Rectangle(x + 20, 123, 108, 144), Color.White);
+        }
+        var forms = new[]
+        {
+            ("Sem forma", new FormLook()),
+            ("Marés", new FormLook("#487c7a", "#b5d8c0", "hood", 2)),
+            ("Ecos · Lunário", new FormLook("#8497b5", "#d5e8c9", "robe", 2, "moonbound")),
+            ("Lâmina · Ígneo", new FormLook("#a46e68", "#ffd09c", "blade", 2, "emberkin")),
+            ("Forja", new FormLook("#826551", "#d8ae83", "plate", 2)),
+            ("Raízes · Silvestre", new FormLook("#679381", "#d6c78f", "hood", 2, "wildborn")),
+        };
+        for (var i = 0; i < forms.Length; i++)
+        {
+            var x = 32 + i * 205;
+            Ui.Text(_batch, _fonts.Body, forms[i].Item1, new Vector2(x, 294), Theme.Luna);
+            _batch.Draw(_forms.Get(forms[i].Item2), new Rectangle(x + 20, 323, 108, 144), Color.White);
+        }
+        var atlas = _textures.Tileset("soluna/atlas.png");
+        Ui.Text(_batch, _fonts.Body, "Pisos e vegetação", new Vector2(32, 490), Theme.TextDim);
+        for (var i = 0; i < 16; i++)
+            _batch.Draw(atlas, new Rectangle(32 + i * 74, 517, 64, 64), new Rectangle(i * 32, 0, 32, 32), Color.White);
+        Ui.Text(_batch, _fonts.Body, "Objetos e ofícios", new Vector2(32, 601), Theme.TextDim);
+        for (var i = 0; i < 16; i++)
+            _batch.Draw(atlas, new Rectangle(32 + i * 74, 628, 64, 64), new Rectangle(i * 32, 192, 32, 32), Color.White);
+        _batch.End();
+    }
+
     private void SaveScreenshot(string path)
     {
         var screen = Screen;
@@ -908,13 +1023,42 @@ internal sealed class SolunaGame : Game
         _batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, transformMatrix: _camera.Transform);
 
         _renderer.DrawLayers(_batch, map, _camera, 0, map.FringeFrom);
-        var units = _others.Values.Append(local).Select(c => (c, sheet: _sprites.SheetFor(c.Look, c.Equipment)))
+        var units = _others.Values.Append(local).Select(c => (c, sheet: PlayerSheet(c)))
             .Concat(_npcs.Values.Select(n => (n.view, sheet: NpcSheet(n.def))));
-        foreach (var (character, sheet) in units.OrderBy(u => u.Item1.Position.Y))
-            _renderer.DrawCharacter(_batch, character, sheet);
+        var actors = units.Select(u => (depth: u.Item1.Position.Y + 32, draw: (Action)(() => _renderer.DrawCharacter(_batch, u.Item1, u.sheet))));
+        var props = map.Props.Select(prop => (depth: (prop.Y + prop.Height) * 32f, draw: (Action)(() =>
+        {
+            if (_textures.Sheet(prop.Sprite) is { } texture)
+                _batch.Draw(texture, new Rectangle(prop.X * 32, prop.Y * 32, prop.Width * 32, prop.Height * 32), Color.White);
+        })));
+        foreach (var entry in actors.Concat(props).OrderBy(entry => entry.depth)) entry.draw();
         _renderer.DrawLayers(_batch, map, _camera, map.FringeFrom, map.Layers.Length);
         _editor.DrawWorld(_batch, map, _camera, _npcDefs, NpcSheet);
+        foreach (var landmark in map.Landmarks)
+        {
+            var near = Math.Abs(landmark.X - local.TileX) + Math.Abs(landmark.Y - local.TileY) <= 3;
+            if (near) Ui.Outline(_batch, _textures.Pixel, new Rectangle(landmark.X * 32 + 1, landmark.Y * 32 + 1, 30, 30), Theme.Sol * .65f);
+            if (landmark.Kind is LandmarkKind.Shrine or LandmarkKind.Expedition or LandmarkKind.Extraction)
+            {
+                for (var i = 0; i < 5; i++)
+                {
+                    var px = landmark.X * 32 + 16 + MathF.Sin(_worldTime + i * 1.5f) * 15;
+                    var py = landmark.Y * 32 + 25 - (_worldTime * 8 + i * 9) % 40;
+                    _batch.Draw(_textures.Pixel, new Rectangle((int)px, (int)py, 1, 2), Theme.Luna * .75f);
+                }
+            }
+        }
 
+        foreach (var pulse in _pulses)
+        {
+            var radius = pulse.age / .55f * 96;
+            for (var i = 0; i < 64; i++)
+            {
+                var angle = i * MathF.Tau / 64;
+                var pos = pulse.position + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * radius;
+                _batch.Draw(_textures.Pixel, new Rectangle((int)pos.X, (int)pos.Y, 2, 2), Theme.Luna * (1 - pulse.age / .55f));
+            }
+        }
         _batch.End();
 
         if (_night && !_editor.Active) DrawNight(local);
@@ -923,7 +1067,7 @@ internal sealed class SolunaGame : Game
     /// <summary>A dark tint over the world with a soft hole of light around the player.</summary>
     private void DrawNight(Character local)
     {
-        var tint = Theme.Night * Theme.NightStrength;
+        var tint = Theme.Night * (_map?.Depth > 0 ? .52f : .22f);
         var center = _camera.WorldToScreen(local.Position + new Vector2(Constants.TileSize / 2f));
         var half = LightInner * _camera.Zoom / MaskInner;
         var rect = new Rectangle((int)(center.X - half), (int)(center.Y - half), (int)(half * 2), (int)(half * 2));
@@ -943,7 +1087,7 @@ internal sealed class SolunaGame : Game
     private void DrawNames()
     {
         foreach (var character in _others.Values.Append(_local!))
-            NameAndBar(character, _sprites.SheetFor(character.Look, character.Equipment), character == _local ? Theme.Sol : Theme.Text);
+            NameAndBar(character, PlayerSheet(character), character == _local ? Theme.Sol : Theme.Text);
         foreach (var (view, def) in _npcs.Values)
             NameAndBar(view, NpcSheet(def), def.Hostile ? Theme.Danger : Theme.TextDim);
         _floating.Draw(_batch, _fonts, _camera.WorldToScreen);
@@ -995,9 +1139,56 @@ internal sealed class SolunaGame : Game
         var changed = _assets.TakeChanged();
         if (changed.Count == 0) return;
         foreach (var path in changed) _textures.Forget(path);
-        if (changed.Any(p => p.StartsWith("characters/"))) _sprites.Reload();
+        if (changed.Any(p => p.StartsWith("characters/") || p.StartsWith("atlases/")))
+        { _sprites.Reload(); _forms.Reload(); }
         _gameEditor.AssetsChanged();
         if (_map != null && _editor.Active) _editor.RefreshPalette(_map);
+    }
+
+    private void DrawTitleBackdrop()
+    {
+        if (_textures.Sheet("interface/title.png") is { } backdrop)
+            _batch.Draw(backdrop, new Rectangle(0, 0, Screen.X, Screen.Y), Color.White);
+        _batch.Draw(_textures.Pixel, new Rectangle(0, 0, Screen.X, Screen.Y), new Color(12, 18, 31) * .25f);
+        if (_stage != Stage.Login) return;
+        Ui.Text(_batch, _fonts.Small, "U M   M U N D O   Q U E   S E   L E M B R A", new Vector2(58, 52), Theme.Sol);
+        Ui.Text(_batch, _fonts.Display, "SOLUNA", new Vector2(52, 74), new Color(232, 226, 202));
+        Ui.Text(_batch, _fonts.Body, "A forma se desfaz. Os ecos permanecem.", new Vector2(58, 152), Theme.Text);
+        Ui.Text(_batch, _fonts.Small, "FANTASIA SOMBRIA  /  VIDAS EM TRANSFORMAÇÃO", new Vector2(58, Screen.Y - 48), Theme.TextDim);
+    }
+
+    private void DrawAdventureHud()
+    {
+        if (_map == null || _local == null) return;
+        var p = _textures.Pixel; var j = _journey.State;
+        var objective = new Rectangle(Screen.X - 332, 14, 318, 74);
+        Ui.Panel(_batch, p, objective);
+        Ui.Text(_batch, _fonts.Small, "O SINO DA VIGÍLIA", new Vector2(objective.X + 14, objective.Y + 10), Theme.Sol);
+        Ui.Text(_batch, _fonts.Small, JourneyRules.Objective(j), new Vector2(objective.X + 14, objective.Y + 31), Theme.Text);
+        Ui.Text(_batch, _fonts.Small, $"Vida {j.Legacy.Lives}   ·   {j.Gold} ouro   ·   Sorte {j.Luck:+0;-0;0}", new Vector2(objective.X + 14, objective.Y + 51), Theme.TextDim);
+        if (_journey.Open || _inventory.Open || _editor.Active) return;
+        var near = _map.Landmarks.Where(l => Math.Abs(l.X - _local.TileX) + Math.Abs(l.Y - _local.TileY) <= 3)
+            .OrderBy(l => Math.Abs(l.X - _local.TileX) + Math.Abs(l.Y - _local.TileY)).FirstOrDefault();
+        if (near != null)
+            Ui.Tag(_batch, p, _fonts.Body, "[E] " + near.Name, new Vector2(Screen.X / 2f, Screen.Y - 102), Theme.Sol);
+        var bx = Screen.X / 2 - 195; var by = Screen.Y - 75;
+        string[] keys = ["Esp.", "1", "2", "Q", "E", "R"];
+        string[] labels = ["Golpe", $"Vida {j.Count(Supply.Tonic)}", $"Éter {j.Count(Supply.Ether)}", "Pulso", "Agir", "Voltar"];
+        for (var i = 0; i < keys.Length; i++)
+        {
+            var box = new Rectangle(bx + i * 66, by, 59, 53);
+            Ui.Panel(_batch, p, box);
+            _batch.Draw(p, new Rectangle(box.X + 2, box.Y + 2, box.Width - 4, 2), i == 2 ? Theme.Luna : Theme.Sol * .55f);
+            Ui.Text(_batch, _fonts.Title, keys[i], new Vector2(box.X + (i == 0 ? 7 : 22), box.Y + 5), i == 2 ? Theme.Luna : Theme.Text);
+            Ui.Text(_batch, _fonts.Small, labels[i], new Vector2(box.X + 7, box.Y + 32), Theme.TextDim);
+        }
+        // A small schematic keeps exits readable without requiring a map command.
+        var scale = 2; var mx = Screen.X - _map.Width * scale - 18; var my = 100;
+        Ui.Panel(_batch, p, new Rectangle(mx - 5, my - 5, _map.Width * scale + 10, _map.Height * scale + 10));
+        for (var y = 0; y < _map.Height; y++) for (var x = 0; x < _map.Width; x++)
+            if (_map.IsWalkable(x, y)) _batch.Draw(p, new Rectangle(mx + x * scale, my + y * scale, scale, scale), new Color(68, 86, 87));
+        foreach (var l in _map.Landmarks) _batch.Draw(p, new Rectangle(mx + l.X * scale, my + l.Y * scale, 3, 3), Theme.Sol);
+        _batch.Draw(p, new Rectangle(mx + _local.TileX * scale - 1, my + _local.TileY * scale - 1, 4, 4), Theme.Luna);
     }
 
     private void DrawStatusBar(MapData map)
@@ -1013,10 +1204,10 @@ internal sealed class SolunaGame : Game
         Ui.Text(_batch, _fonts.Title, Constants.GameName, new Vector2(bar.X + 12, bar.Y + 2), Theme.Luna);
         Ui.Text(_batch, _fonts.Body, info, new Vector2(bar.X + 28 + _fonts.Title.MeasureString(Constants.GameName).X, bar.Y + 7), Theme.TextDim);
 
-        if (_editor.Active || _inventory.Open) return;
+        if (_editor.Active || _inventory.Open || _journey.Open) return;
         var hint = _access > 0
-            ? "Enter chat  ·  I equipamento  ·  F1 mapa  ·  F2 jogo  ·  F3 noite  ·  +/- zoom"
-            : "Enter chat  ·  I equipamento  ·  F3 noite  ·  +/- zoom";
+            ? "WASD mover  ·  J diário  ·  C ofícios  ·  I equipamento  ·  F1/F2 editores"
+            : "WASD mover  ·  J diário  ·  C ofícios  ·  I equipamento  ·  Enter chat";
         var size = _fonts.Small.MeasureString(hint);
         var screen = Screen;
         Ui.Text(_batch, _fonts.Small, hint, new Vector2(screen.X - size.X - 14, screen.Y - size.Y - 12), Theme.TextDim);

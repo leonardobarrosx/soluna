@@ -11,6 +11,12 @@ internal sealed class Canvas(int width, int height)
     public int Width { get; } = width;
     public int Height { get; } = height;
 
+    public void CopyFrom(Color[] pixels)
+    {
+        if (pixels.Length != _pixels.Length) throw new ArgumentException("Canvas pixel count differs from its dimensions.");
+        pixels.CopyTo(_pixels, 0);
+    }
+
     /// <summary>Drawing offset, so tile painters can work in 0..31 coordinates.</summary>
     public Point Origin { get; set; }
 

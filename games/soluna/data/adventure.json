@@ -1,0 +1,212 @@
+{
+  "EmergentAppearance": true,
+  "DeathResetsLife": true,
+  "Dungeon": {
+    "FirstMapId": 1001,
+    "Name": "Ruínas do Eclipse",
+    "Tileset": "soluna/atlas.png",
+    "FloorTile": 5,
+    "WallTile": 7,
+    "Enemies": [
+      10,
+      11,
+      12
+    ],
+    "Boss": 99,
+    "BossEvery": 3
+  },
+  "Resources": [
+    {
+      "id": "wood",
+      "name": "Madeira antiga",
+      "value": 2
+    },
+    {
+      "id": "ore",
+      "name": "Minério pálido",
+      "value": 3
+    },
+    {
+      "id": "herb",
+      "name": "Erva amarga",
+      "value": 2
+    },
+    {
+      "id": "fish",
+      "name": "Peixe prateado",
+      "value": 3
+    },
+    {
+      "id": "echo",
+      "name": "Essência bruta",
+      "value": 4
+    },
+    {
+      "id": "ingot",
+      "name": "Lingote pálido",
+      "value": 9
+    }
+  ],
+  "Activities": [
+    {
+      "id": "fishing",
+      "habit": "fish",
+      "resource": "fish",
+      "message": "A linha retorna do escuro.",
+      "cooldownSeconds": 4,
+      "supply": 2
+    },
+    {
+      "id": "forage",
+      "habit": "gather",
+      "resource": "herb",
+      "message": "Você recolhe o que resiste.",
+      "cooldownSeconds": 4,
+      "supply": 3
+    },
+    {
+      "id": "mining",
+      "habit": "mine",
+      "resource": "ore",
+      "message": "A pedra cede sob suas mãos.",
+      "cooldownSeconds": 4,
+      "supply": 4
+    },
+    {
+      "id": "woodcutting",
+      "habit": "wood",
+      "resource": "wood",
+      "message": "O bosque entrega um fragmento.",
+      "cooldownSeconds": 4,
+      "supply": -1
+    },
+    {
+      "id": "extraction",
+      "habit": "extract",
+      "resource": "echo",
+      "message": "Um eco se desprende do cristal.",
+      "cooldownSeconds": 5,
+      "supply": 2
+    }
+  ],
+  "Recipes": [
+    {
+      "id": "tonic",
+      "name": "Tônico de vida",
+      "description": "Restaura 40 de vida.",
+      "costs": {
+        "herb": 2,
+        "fish": 1
+      },
+      "item": 0,
+      "resource": "",
+      "supply": 0,
+      "amount": 2
+    },
+    {
+      "id": "ether",
+      "name": "Éter azul",
+      "description": "Restaura 25 de essência.",
+      "costs": {
+        "herb": 1,
+        "echo": 2
+      },
+      "item": 0,
+      "resource": "",
+      "supply": 1,
+      "amount": 2
+    },
+    {
+      "id": "smelt",
+      "name": "Fundir lingote",
+      "description": "Metal para novas ferramentas.",
+      "costs": {
+        "ore": 3,
+        "wood": 2
+      },
+      "item": 0,
+      "resource": "ingot",
+      "supply": -1,
+      "amount": 1
+    },
+    {
+      "id": "blade",
+      "name": "Espada de ferro pálido",
+      "description": "Arma · +6 ataque.",
+      "costs": {
+        "ingot": 2,
+        "wood": 3
+      },
+      "item": 101,
+      "resource": "",
+      "supply": -1,
+      "amount": 1
+    },
+    {
+      "id": "echo-blade",
+      "name": "Lâmina de ecos",
+      "description": "Arma · +10 ataque, -2 sorte.",
+      "costs": {
+        "ingot": 3,
+        "echo": 8
+      },
+      "item": 102,
+      "resource": "",
+      "supply": -1,
+      "amount": 1
+    },
+    {
+      "id": "talisman",
+      "name": "Talismã das marés",
+      "description": "Pescoço · +2 defesa, +5 sorte.",
+      "costs": {
+        "fish": 5,
+        "echo": 5
+      },
+      "item": 103,
+      "resource": "",
+      "supply": -1,
+      "amount": 1
+    },
+    {
+      "id": "cloak",
+      "name": "Manto do peregrino",
+      "description": "Costas · +4 defesa, +1 sorte.",
+      "costs": {
+        "herb": 6,
+        "wood": 5,
+        "echo": 2
+      },
+      "item": 104,
+      "resource": "",
+      "supply": -1,
+      "amount": 1
+    },
+    {
+      "id": "tea",
+      "name": "Chá dos espíritos",
+      "description": "Sorte favorecida por dois minutos.",
+      "costs": {
+        "herb": 3,
+        "fish": 1
+      },
+      "item": 0,
+      "resource": "",
+      "supply": 5,
+      "amount": 1
+    },
+    {
+      "id": "salt",
+      "name": "Sal de cinzas",
+      "description": "Dissipa uma maldição.",
+      "costs": {
+        "ore": 2,
+        "echo": 2
+      },
+      "item": 0,
+      "resource": "",
+      "supply": 6,
+      "amount": 1
+    }
+  ]
+}

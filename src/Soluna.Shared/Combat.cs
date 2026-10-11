@@ -43,6 +43,7 @@ public enum NpcBehaviour : byte
 public sealed class NpcDef
 {
     public int Id { get; set; }
+    public bool Boss { get; set; }
     public string Name { get; set; } = "";
 
     /// <summary>A 3x4 RPG Maker sheet, as a path under assets/. Used when <see cref="Look"/> is not set.</summary>

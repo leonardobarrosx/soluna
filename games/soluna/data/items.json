@@ -1,20 +1,37 @@
 [
-  { "id": 1, "name": "Regata de linho", "slot": "Torso", "sheet": "sleeveless", "colors": ["#d8d2c4"], "starter": true },
-  { "id": 2, "name": "Regata verde-musgo", "slot": "Torso", "sheet": "sleeveless", "colors": ["#5e7a55"] },
-  { "id": 3, "name": "Túnica de viajante", "slot": "Torso", "sheet": "robe", "colors": ["#3f5f8a"], "starter": true },
-  { "id": 4, "name": "Túnica carmim", "slot": "Torso", "sheet": "robe", "colors": ["#8c2f39"] },
-  { "id": 5, "name": "Vestido de lua", "slot": "Torso", "sheet": "dress", "colors": ["#6a5aa8"] },
-  { "id": 6, "name": "Manto do aprendiz", "slot": "Torso", "sheet": "mantle", "colors": ["#4b3a78"] },
-  { "id": 7, "name": "Manto do sol", "slot": "Torso", "sheet": "mantle", "colors": ["#c98a2e"] },
-  { "id": 8, "name": "Armadura de aço", "slot": "Torso", "sheet": "armor", "colors": [] },
-
-  { "id": 20, "name": "Calça de viagem", "slot": "Legs", "sheet": "pants", "colors": ["#4a3a2c"], "starter": true },
-  { "id": 21, "name": "Calça escura", "slot": "Legs", "sheet": "pants", "colors": ["#2c2f3a"] },
-  { "id": 22, "name": "Calça clara", "slot": "Legs", "sheet": "pants", "colors": ["#b9b2a0"] },
-
-  { "id": 40, "name": "Colar de pérolas", "slot": "Neck", "sheet": "necklace", "colors": [] },
-  { "id": 41, "name": "Amuleto solar", "slot": "Neck", "sheet": "amulet", "colors": [] },
-
-  { "id": 60, "name": "Braçadeiras de ouro", "slot": "Arms", "sheet": "armbands", "colors": [] },
-  { "id": 61, "name": "Braçadeiras de prata", "slot": "Arms", "sheet": "armbands", "colors": ["#c9ccd6"] }
+  {
+    "id": 100,
+    "name": "Fragmento de lâmina",
+    "slot": "Weapon",
+    "attack": 2,
+    "starter": true
+  },
+  {
+    "id": 101,
+    "name": "Espada de ferro pálido",
+    "slot": "Weapon",
+    "attack": 6,
+    "price": 60
+  },
+  {
+    "id": 102,
+    "name": "Lâmina de ecos",
+    "slot": "Weapon",
+    "attack": 10,
+    "luck": -2
+  },
+  {
+    "id": 103,
+    "name": "Talismã das marés",
+    "slot": "Neck",
+    "defense": 2,
+    "luck": 5
+  },
+  {
+    "id": 104,
+    "name": "Manto do peregrino",
+    "slot": "Back",
+    "defense": 4,
+    "luck": 1
+  }
 ]

@@ -37,6 +37,7 @@ public sealed class ItemDef
 
     /// <summary>What a shop asks for it, in the game's currency.</summary>
     public int Price { get; set; }
+    public int Luck { get; set; }
 
     public ItemDef Clone() => (ItemDef)MemberwiseClone();
 }

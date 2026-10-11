@@ -1,6 +1,76 @@
 [
-  { "id": 1, "name": "Aldeão", "behaviour": "Friendly", "hp": 30, "look": { "body": 0, "skin": 1, "hair": 0, "hairColor": 2, "eyes": 0 }, "wears": [3, 20] },
-  { "id": 2, "name": "Aldeã", "behaviour": "Friendly", "hp": 30, "look": { "body": 1, "skin": 3, "hair": 4, "hairColor": 4, "eyes": 2 }, "wears": [5] },
-  { "id": 10, "name": "Sombra", "behaviour": "Aggressive", "hp": 26, "attack": 8, "defense": 1, "exp": 10, "range": 4, "look": { "body": 0, "skin": 6, "hair": 1, "hairColor": 0, "eyes": 1 }, "wears": [6] },
-  { "id": 11, "name": "Andarilho", "behaviour": "Passive", "hp": 40, "attack": 10, "defense": 2, "exp": 16, "look": { "body": 1, "skin": 7, "hair": 2, "hairColor": 9, "eyes": 3 }, "wears": [4, 21] }
+  {
+    "id": 1,
+    "name": "Mercador de cinzas",
+    "behaviour": "Friendly",
+    "hp": 80,
+    "sprite": "characters/echoes/merchant.png"
+  },
+  {
+    "id": 2,
+    "name": "A última vigília",
+    "behaviour": "Friendly",
+    "hp": 80,
+    "sprite": "characters/echoes/keeper.png"
+  },
+  {
+    "id": 10,
+    "name": "Eco errante",
+    "sprite": "characters/echoes/wisp.png",
+    "behaviour": "Aggressive",
+    "hp": 24,
+    "attack": 6,
+    "defense": 2,
+    "exp": 12,
+    "range": 5,
+    "moveMs": 700,
+    "attackMs": 1500,
+    "respawnSeconds": 35,
+    "boss": false
+  },
+  {
+    "id": 11,
+    "name": "Raiz desperta",
+    "sprite": "characters/echoes/thorn.png",
+    "behaviour": "Passive",
+    "hp": 35,
+    "attack": 7,
+    "defense": 2,
+    "exp": 16,
+    "range": 5,
+    "moveMs": 700,
+    "attackMs": 1500,
+    "respawnSeconds": 35,
+    "boss": false
+  },
+  {
+    "id": 12,
+    "name": "Cinza faminta",
+    "sprite": "characters/echoes/cinder.png",
+    "behaviour": "Aggressive",
+    "hp": 42,
+    "attack": 9,
+    "defense": 2,
+    "exp": 20,
+    "range": 5,
+    "moveMs": 700,
+    "attackMs": 1500,
+    "respawnSeconds": 35,
+    "boss": false
+  },
+  {
+    "id": 99,
+    "name": "Guardião do Eclipse",
+    "sprite": "characters/echoes/guardian.png",
+    "behaviour": "Aggressive",
+    "hp": 130,
+    "attack": 15,
+    "defense": 5,
+    "exp": 75,
+    "range": 5,
+    "moveMs": 700,
+    "attackMs": 1500,
+    "respawnSeconds": 35,
+    "boss": true
+  }
 ]

@@ -31,8 +31,12 @@ internal sealed class Fonts
         Small = _system.GetFont(13);
         Body = _system.GetFont(15);
         Title = _system.GetFont(22);
+        Display = _system.GetFont(62);
+        Heading = _system.GetFont(30);
     }
 
+    public SpriteFontBase Display { get; }
+    public SpriteFontBase Heading { get; }
     public SpriteFontBase Small { get; }
     public SpriteFontBase Body { get; }
     public SpriteFontBase Title { get; }

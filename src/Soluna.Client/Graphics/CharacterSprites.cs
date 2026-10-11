@@ -203,8 +203,7 @@ internal sealed class CharacterSprites
         var path = Path.Combine(_folder, file);
         if (File.Exists(path))
         {
-            using var stream = File.OpenRead(path);
-            using var texture = Texture2D.FromStream(_device, stream);
+            using var texture = AtlasTextures.Load(_device, path);
             var pixels = new Color[texture.Width * texture.Height];
             texture.GetData(pixels);
 

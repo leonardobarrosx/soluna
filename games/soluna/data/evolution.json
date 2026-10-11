@@ -1,0 +1,176 @@
+{
+  "rules": [
+    {
+      "id": "reaper",
+      "name": "Ceifador",
+      "kind": "calling",
+      "requires": {
+        "melee": 12,
+        "hunt": 3
+      },
+      "weights": {
+        "melee": 1,
+        "hunt": 4
+      },
+      "tint": "#76657f",
+      "accent": "#dab18b",
+      "silhouette": "blade",
+      "trace": "Seu corpo aprendeu o peso de uma lâmina.",
+      "attack": 4,
+      "defense": 2,
+      "health": 10
+    },
+    {
+      "id": "weaver",
+      "name": "Tecelão de ecos",
+      "kind": "calling",
+      "requires": {
+        "magic": 6
+      },
+      "weights": {
+        "magic": 7,
+        "extract": 3
+      },
+      "tint": "#656c9c",
+      "accent": "#b1d7d4",
+      "silhouette": "robe",
+      "trace": "O silêncio agora vibra entre seus dedos.",
+      "mana": 24,
+      "skillCost": 5
+    },
+    {
+      "id": "tidekeeper",
+      "name": "Guardião das marés",
+      "kind": "calling",
+      "requires": {
+        "fish": 8
+      },
+      "weights": {
+        "fish": 6,
+        "spirits": 2
+      },
+      "tint": "#487c7a",
+      "accent": "#b5d8c0",
+      "silhouette": "hood",
+      "trace": "Sua respiração encontrou o ritmo das águas.",
+      "health": 18,
+      "defense": 2
+    },
+    {
+      "id": "marshblade",
+      "name": "Lâmina do brejo",
+      "kind": "calling",
+      "requires": {
+        "fish": 5,
+        "melee": 8
+      },
+      "weights": {
+        "fish": 5,
+        "melee": 2,
+        "hunt": 3
+      },
+      "tint": "#596f65",
+      "accent": "#ccd099",
+      "silhouette": "blade",
+      "trace": "Paciência e violência deixaram a mesma marca.",
+      "attack": 3,
+      "health": 12,
+      "skillCooldownMs": 2000
+    },
+    {
+      "id": "forgeborn",
+      "name": "Filho da forja",
+      "kind": "calling",
+      "requires": {
+        "mine": 5,
+        "craft": 3
+      },
+      "weights": {
+        "mine": 4,
+        "craft": 8,
+        "wood": 2
+      },
+      "tint": "#826551",
+      "accent": "#d8ae83",
+      "silhouette": "plate",
+      "trace": "Seus braços guardam a memória do metal.",
+      "defense": 5,
+      "attack": 2
+    },
+    {
+      "id": "rootwalker",
+      "name": "Andarilho de raízes",
+      "kind": "calling",
+      "requires": {
+        "gather": 5,
+        "wood": 5
+      },
+      "weights": {
+        "gather": 5,
+        "wood": 5,
+        "explore": 1
+      },
+      "tint": "#57785c",
+      "accent": "#c5c78a",
+      "silhouette": "hood",
+      "trace": "O bosque reconhece seus passos.",
+      "health": 20,
+      "skillCooldownMs": 2000
+    },
+    {
+      "id": "moonbound",
+      "name": "Lunário",
+      "kind": "bloodline",
+      "requires": {
+        "moonfood": 3,
+        "magic": 3
+      },
+      "weights": {
+        "moonfood": 10,
+        "magic": 2
+      },
+      "tint": "#8497b5",
+      "accent": "#d5e8c9",
+      "silhouette": "robe",
+      "trace": "Um brilho frio atravessa a pele que você chamava sua.",
+      "mana": 16
+    },
+    {
+      "id": "wildborn",
+      "name": "Silvestre",
+      "kind": "bloodline",
+      "requires": {
+        "wildfood": 3,
+        "gather": 5
+      },
+      "weights": {
+        "wildfood": 10,
+        "gather": 3,
+        "fish": 2
+      },
+      "tint": "#679381",
+      "accent": "#d6c78f",
+      "silhouette": "hood",
+      "trace": "Pequenas raízes procuram a luz sob sua pele.",
+      "health": 20
+    },
+    {
+      "id": "emberkin",
+      "name": "Ígneo",
+      "kind": "bloodline",
+      "requires": {
+        "emberfood": 3,
+        "hunt": 6
+      },
+      "weights": {
+        "emberfood": 10,
+        "hunt": 3
+      },
+      "tint": "#a46e68",
+      "accent": "#ffd09c",
+      "silhouette": "blade",
+      "trace": "Há brasas onde antes havia apenas sombra.",
+      "attack": 3
+    }
+  ]
+}

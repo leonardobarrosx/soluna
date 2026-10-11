@@ -19,6 +19,7 @@ internal sealed class CharacterSave
     public Direction Dir { get; set; }
     public int Level { get; set; } = 1;
     public int Exp { get; set; }
+    public Journey Journey { get; set; } = new();
 
     /// <summary>-1 until first saved: a new character starts full.</summary>
     public int Hp { get; set; } = -1;
@@ -36,6 +37,7 @@ internal sealed class CharacterSave
 internal sealed class Account
 {
     public string Username { get; set; } = "";
+    public Legacy Legacy { get; set; } = new();
     public string PasswordHash { get; set; } = "";
     public string Salt { get; set; } = "";
     public int Iterations { get; set; }
@@ -100,6 +102,7 @@ internal sealed partial class AccountStore
         var account = new Account
         {
             Username = username,
+            Legacy = new Legacy { InnateLuck = RandomNumberGenerator.GetInt32(-2, 4) },
             Salt = Convert.ToBase64String(salt),
             Iterations = Iterations,
             PasswordHash = Convert.ToBase64String(Hash(password, salt, Iterations)),

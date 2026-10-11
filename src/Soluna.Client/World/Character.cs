@@ -9,6 +9,7 @@ namespace Soluna.Client.World;
 /// </summary>
 internal sealed class Character(int id, string name, Appearance look, Equipment equipment)
 {
+    public Soluna.Client.Graphics.FormLook Form { get; set; } = new();
     public int Id { get; } = id;
     public string Name { get; } = name;
     public Appearance Look { get; } = look;

@@ -50,7 +50,7 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
         return null;
     }
 
-    public void Draw(SpriteBatch batch, Texture2D pixel, Fonts fonts, Character me, Point screen)
+    public void Draw(SpriteBatch batch, Texture2D pixel, Fonts fonts, Character me, Point screen, Texture2D? evolvedSheet = null)
     {
         if (!Open) return;
 
@@ -60,7 +60,7 @@ internal sealed class InventoryPanel(ItemCatalog items, Sprites sprites)
         Ui.Text(batch, fonts.Title, "Equipamento", new Vector2(x, panel.Y + 10), Theme.Luna);
 
         // The character as it looks right now, standing facing down.
-        var sheet = sprites.SheetFor(me.Look, me.Equipment);
+        var sheet = evolvedSheet ?? sprites.SheetFor(me.Look, me.Equipment);
         var frame = SheetLayout.Frame(sheet, Direction.Down, false, 1, false);
         var preview = new Rectangle(x, panel.Y + 46, 110, 150);
         batch.Draw(pixel, preview, Theme.Background);

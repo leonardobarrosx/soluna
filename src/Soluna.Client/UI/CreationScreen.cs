@@ -34,12 +34,14 @@ internal sealed class CreationScreen
     private readonly StringBuilder _name;
     private readonly int[] _values = new int[7];
     private readonly List<(string label, int field, Choice[] choices)> _rows;
+    private readonly bool _emergent;
     private readonly Random _rng = new();
     private int _row;
     private float _time;
 
-    public CreationScreen(Sprites sprites, ItemCatalog items, string name)
+    public CreationScreen(Sprites sprites, ItemCatalog items, string name, bool emergent = false)
     {
+        _emergent = emergent;
         _sprites = sprites;
         _preview = items.StarterEquipment();
         _name = new StringBuilder(name.Length > Constants.MaxNameLength ? name[..Constants.MaxNameLength] : name);
@@ -56,7 +58,8 @@ internal sealed class CreationScreen
             (o.Label("beards", "Barba"), Beard, o.Beards),
             (o.Label("eyes", "Olhos"), Eyes, o.Eyes),
         }.Where(r => r.Item2 < 0 || r.Item3.Length > 1).ToList();
-        Randomize();
+        if (_emergent) _rows.RemoveAll(r => r.field >= 0);
+        else Randomize();
     }
 
     public string Name => _name.ToString().Trim();
@@ -125,7 +128,7 @@ internal sealed class CreationScreen
                 if (LeftArrow(rect).Contains(mouse)) Step(row, -1);
                 if (RightArrow(rect).Contains(mouse)) Step(row, 1);
             }
-            if (RandomButton(layout).Contains(mouse)) Randomize();
+            if (!_emergent && RandomButton(layout).Contains(mouse)) Randomize();
             if (EnterButton(layout).Contains(mouse) && Name.Length > 0) return CreationAction.Confirm;
         }
 
@@ -138,7 +141,7 @@ internal sealed class CreationScreen
         Ui.Panel(batch, pixel, layout);
 
         Ui.Text(batch, fonts.Title, Constants.GameName, new Vector2(layout.X + 28, layout.Y + 20), Theme.Luna);
-        Ui.Text(batch, fonts.Body, "Crie seu personagem", new Vector2(layout.X + 28, layout.Y + 50), Theme.TextDim);
+        Ui.Text(batch, fonts.Body, _emergent ? "Toda vida começa sem forma" : "Crie seu personagem", new Vector2(layout.X + 28, layout.Y + 50), Theme.TextDim);
 
         DrawPreview(batch, pixel, fonts, new Rectangle(layout.X + 28, layout.Y + 90, 260, 300));
 
@@ -164,10 +167,18 @@ internal sealed class CreationScreen
             Arrow(batch, fonts, RightArrow(rect), ">", selected);
         }
 
+        if (_emergent)
+        {
+            string[] lines = ["Nada foi escrito em você.", "", "Caminhe. Pesque. Lute. Crie.", "O mundo deixará suas marcas.", "", "Uma forma não é uma prisão.", "Toda atividade permanece aberta.", "", "Ao morrer, a forma se desfaz.", "Algumas memórias atravessam a noite."];
+            for (var i = 0; i < lines.Length; i++) Ui.Text(batch, fonts.Small, lines[i], new Vector2(layout.X + 316, layout.Y + 150 + i * 20), Theme.TextDim);
+        }
         var random = RandomButton(layout);
-        batch.Draw(pixel, random, Theme.PanelRaised);
-        Ui.Outline(batch, pixel, random, Theme.Border);
-        Centered(batch, fonts, random, "Aleatório (R)", Theme.TextDim);
+        if (!_emergent)
+        {
+            batch.Draw(pixel, random, Theme.PanelRaised);
+            Ui.Outline(batch, pixel, random, Theme.Border);
+            Centered(batch, fonts, random, "Aleatório (R)", Theme.TextDim);
+        }
 
         var enter = EnterButton(layout);
         var ready = Name.Length > 0;
@@ -181,7 +192,7 @@ internal sealed class CreationScreen
             Ui.Text(batch, fonts.Body, Message, new Vector2(layout.X + 28 + 130 - messageSize.X / 2, layout.Bottom - 50), Theme.Danger);
         }
 
-        const string help = "Setas escolhem e mudam  ·  R sorteia  ·  Esc volta";
+        var help = _emergent ? "Dê um nome a esta vida  ·  Enter desperta  ·  Esc volta" : "Setas escolhem e mudam  ·  R sorteia  ·  Esc volta";
         var helpSize = fonts.Small.MeasureString(help);
         Ui.Text(batch, fonts.Small, help, new Vector2(layout.Center.X - helpSize.X / 2, layout.Bottom + 12), Theme.TextDim);
     }

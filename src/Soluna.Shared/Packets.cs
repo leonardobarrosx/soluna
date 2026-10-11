@@ -34,6 +34,7 @@ public enum PacketType : byte
 
     /// <summary>A game file the client lacks or has an old version of: its path.</summary>
     AssetRequest = 15,
+    AdventureAction = 16,
 
     // Server -> Client
     LoginOk = 100,
@@ -97,6 +98,10 @@ public enum PacketType : byte
 
     /// <summary>A game file was added or replaced: path, size, hash.</summary>
     AssetAdded = 124,
+    Journey = 125,
+    FormChanged = 126,
+    AdventureCatalog = 127,
+    Pulse = 128,
 }
 
 /// <summary>What a character slot shows on the select screen.</summary>

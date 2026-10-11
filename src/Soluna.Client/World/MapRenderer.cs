@@ -8,6 +8,7 @@ namespace Soluna.Client.World;
 internal sealed class MapRenderer(Textures textures, Sprites sprites)
 {
     private const int S = Constants.TileSize;
+    private readonly TerrainTransitions _transitions = new(textures);
 
     /// <summary>Draws layers [from, to) over the tiles the camera can see.</summary>
     public void DrawLayers(SpriteBatch batch, MapData map, Camera camera, int from, int to)
@@ -20,7 +21,11 @@ internal sealed class MapRenderer(Textures textures, Sprites sprites)
             for (var x = x0; x <= x1; x++)
             {
                 var tile = cells[map.Index(x, y)];
-                if (tile != TileRef.Empty) DrawTile(batch, map, tile, new Vector2(x * S, y * S), Color.White);
+                if (tile != TileRef.Empty)
+                {
+                    DrawTile(batch, map, tile, new Vector2(x * S, y * S), Color.White);
+                    if (layer == 0) _transitions.Draw(batch, map, tile, x, y);
+                }
             }
         }
     }

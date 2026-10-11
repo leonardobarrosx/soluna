@@ -39,5 +39,5 @@ if (walk && user == null && name != null)
 }
 
 using var game = new SolunaGame(new ClientOptions(
-    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory, creation, gameEditorTab, editorMode, import));
+    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory, creation, gameEditorTab, editorMode, import, args.Contains("--journal"), args.Contains("--art-preview")));
 game.Run();

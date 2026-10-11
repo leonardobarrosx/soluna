@@ -9,13 +9,13 @@ namespace Soluna.Client.Graphics;
 internal static class Theme
 {
     public static readonly Color Background = new(11, 12, 18);
-    public static readonly Color Panel = new Color(20, 22, 30) * 0.92f;
+    public static readonly Color Panel = new Color(19, 27, 34) * 0.92f;
     public static readonly Color PanelRaised = new Color(30, 33, 44) * 0.96f;
-    public static readonly Color Border = new(48, 52, 68);
+    public static readonly Color Border = new(68, 78, 87);
     public static readonly Color Text = new(222, 224, 235);
     public static readonly Color TextDim = new(138, 143, 163);
-    public static readonly Color Luna = new(178, 160, 255);
-    public static readonly Color Sol = new(240, 184, 96);
+    public static readonly Color Luna = new(139, 190, 183);
+    public static readonly Color Sol = new(219, 180, 124);
     public static readonly Color Danger = new(235, 96, 110);
     public static readonly Color System = new(120, 200, 170);
 

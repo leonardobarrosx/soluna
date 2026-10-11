@@ -134,13 +134,15 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer, Gui gui
             // The palette is the one part of the panel the widget kit does not draw.
             if (_mode != Mode.Tiles || _palette.Count == 0 || !palette.Contains(mouse)) return input.Ctrl && input.Pressed(Keys.S);
             var texture = textures.Tileset(_palette[_tileset]);
-            _scroll = Math.Clamp(_scroll - input.Wheel * S, 0, Math.Max(0, texture.Height - palette.Height));
+            var columns = Math.Max(1, palette.Width / S);
+            var count = Math.Max(1, texture.Width / S) * Math.Max(1, texture.Height / S);
+            var rows = (count + columns - 1) / columns;
+            _scroll = Math.Clamp(_scroll - input.Wheel * S, 0, Math.Max(0, rows * S - palette.Height));
             if (input.LeftPressed)
             {
                 var col = (mouse.X - palette.X) / S;
                 var row = (mouse.Y - palette.Y + _scroll) / S;
-                var columns = Math.Max(1, texture.Width / S);
-                if (col < columns && row < texture.Height / S)
+                if (col < columns && row * columns + col < count)
                 {
                     _selectedSet = _palette[_tileset];
                     _selectedIndex = row * columns + col;
@@ -349,12 +351,22 @@ internal sealed class MapEditor(Textures textures, MapRenderer renderer, Gui gui
         if (_palette.Count > 0)
         {
             var texture = textures.Tileset(_palette[_tileset]);
-            var w = Math.Min(texture.Width, palette.Width);
-            var h = Math.Min(texture.Height - _scroll, palette.Height);
-            if (h > 0) batch.Draw(texture, new Rectangle(palette.X, palette.Y, w, h), new Rectangle(0, _scroll, w, h), Color.White);
+            var columns = Math.Max(1, palette.Width / S);
+            var sourceColumns = Math.Max(1, texture.Width / S);
+            var count = sourceColumns * Math.Max(1, texture.Height / S);
+            // Wrap wide atlases to the panel so tiles beyond the original image's right edge remain selectable.
+            for (var index = _scroll / S * columns; index < count; index++)
+            {
+                var destination = new Rectangle(palette.X + index % columns * S, palette.Y + index / columns * S - _scroll, S, S);
+                if (destination.Top >= palette.Bottom) break;
+                var clip = Rectangle.Intersect(destination, palette);
+                if (clip.Width <= 0 || clip.Height <= 0) continue;
+                var source = new Rectangle(index % sourceColumns * S + clip.X - destination.X,
+                    index / sourceColumns * S + clip.Y - destination.Y, clip.Width, clip.Height);
+                batch.Draw(texture, clip, source, Color.White);
+            }
             if (_selectedSet == _palette[_tileset])
             {
-                var columns = Math.Max(1, texture.Width / S);
                 var sel = new Rectangle(palette.X + _selectedIndex % columns * S, palette.Y + _selectedIndex / columns * S - _scroll, S, S);
                 if (palette.Contains(sel.Center)) Ui.Outline(batch, pixel, sel, Theme.Sol, 2);
             }

@@ -21,11 +21,38 @@ internal sealed class MapStore
     private readonly Dictionary<int, MapData> _maps = [];
     private readonly Dictionary<int, string> _paths = [];
 
+    private int _expeditionSeed = Random.Shared.Next(1, int.MaxValue);
+    public void NewExpedition()
+    {
+        _expeditionSeed = Random.Shared.Next(1, int.MaxValue);
+        Directory.CreateDirectory(_privateFolder);
+        File.WriteAllText(Path.Combine(_privateFolder, ".expedition-seed"), _expeditionSeed.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+    public MapData Expedition(DungeonSettings settings, int depth)
+    {
+        var id = checked(settings.FirstMapId + depth - 1);
+        if (_maps.TryGetValue(id, out var existing) && existing.Seed == _expeditionSeed) return existing;
+        var path = Path.Combine(_privateFolder, $"{id}.json");
+        if (File.Exists(path))
+        {
+            var saved = MapData.FromBytes(File.ReadAllBytes(path));
+            if (saved.Seed == _expeditionSeed) { _maps[id] = saved; _paths[id] = path; return saved; }
+        }
+        var map = DungeonGenerator.Build(settings, _expeditionSeed, depth);
+        // A fresh seed is also the cache revision. Returning clients cannot reuse an older layout.
+        map.Revision = _expeditionSeed;
+        Store(map, Path.Combine(_privateFolder, $"{id}.json"));
+        return map;
+    }
+
     public MapStore(string folder)
     {
         _folder = folder;
         _privateFolder = Path.Combine(folder, "private");
         Directory.CreateDirectory(folder);
+        var seedPath = Path.Combine(_privateFolder, ".expedition-seed");
+        if (File.Exists(seedPath) && int.TryParse(File.ReadAllText(seedPath), out var seed) && seed > 0) _expeditionSeed = seed;
+        else NewExpedition();
     }
 
     public MapData Get(int id)

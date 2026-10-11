@@ -16,25 +16,28 @@ internal sealed class Player
     public int X { get; set; }
     public int Y { get; set; }
     public Direction Dir { get; set; }
-    public required Appearance Look { get; init; }
-    public required Equipment Equipment { get; init; }
+    public required Appearance Look { get; set; }
+    public required Equipment Equipment { get; set; }
     public required List<int> Inventory { get; init; }
 
     public bool IsAdmin => Account.Access > 0;
 
     public int Level { get; set; } = 1;
     public int Exp { get; set; }
+    public Journey Journey { get; set; } = new();
+    public long NextSkillMs { get; set; }
+    public long NextActionMs { get; set; }
     public int Hp { get; set; }
     public int Mp { get; set; }
-    public int MaxHp => Formulas.MaxHp(Level);
-    public int MaxMp => Formulas.MaxMp(Level);
+    public int MaxHp => Formulas.MaxHp(Level) + Journey.HpBonus;
+    public int MaxMp => Formulas.MaxMp(Level) + Journey.MpBonus;
     public long NextAttackMs { get; set; }
     public long LastCombatMs { get; set; }
 
     /// <summary>Attack from level plus everything worn.</summary>
-    public int AttackPower(ItemCatalog items) => Formulas.Attack(Level) + Equipment.Items.Sum(id => items.Get(id)?.Attack ?? 0);
+    public int AttackPower(ItemCatalog items) => Formulas.Attack(Level) + Journey.AttackBonus + Equipment.Items.Sum(id => items.Get(id)?.Attack ?? 0);
 
-    public int DefensePower(ItemCatalog items) => Formulas.Defense(Level) + Equipment.Items.Sum(id => items.Get(id)?.Defense ?? 0);
+    public int DefensePower(ItemCatalog items) => Formulas.Defense(Level) + Journey.DefenseBonus + Equipment.Items.Sum(id => items.Get(id)?.Defense ?? 0);
 
     /// <summary>Milliseconds of walking this player may still spend; refills with real time.</summary>
     public float MoveBudgetMs { get; set; } = GameServer.MoveBudgetCapMs;
@@ -58,6 +61,7 @@ internal sealed class Player
             Dir = Dir,
             Level = Level,
             Exp = Exp,
+            Journey = Journey,
             Hp = Hp,
             Mp = Mp,
         };
@@ -176,6 +180,7 @@ internal sealed partial class GameServer
                     case PacketType.EquipToggle: HandleEquip(player, reader); break;
                     case PacketType.MapRequest: HandleMapRequest(player, reader); break;
                     case PacketType.Attack: HandleAttack(player, reader); break;
+                    case PacketType.AdventureAction: HandleAdventure(player, reader); break;
                     case PacketType.ContentSave: HandleContentSave(player, reader); break;
                     case PacketType.MapListRequest: HandleMapList(player); break;
                     case PacketType.AssetUpload: HandleAssetUpload(player, reader); break;
@@ -210,7 +215,7 @@ internal sealed partial class GameServer
         var username = reader.GetString().Trim();
         var password = reader.GetString();
 
-        if ((register ? AccountStore.CheckUsername(username) ?? AccountStore.CheckPassword(password) : null) is { } problem)
+        if ((AccountStore.CheckUsername(username) ?? AccountStore.CheckPassword(password)) is { } problem)
         {
             Refuse(session.Peer, problem);
             return;
@@ -250,6 +255,9 @@ internal sealed partial class GameServer
         var npcs = PacketIO.Begin(PacketType.NpcCatalog);
         npcs.Put(_npcs.Json);
         session.Peer.Send(npcs, DeliveryMethod.ReliableOrdered);
+        var adventure = PacketIO.Begin(PacketType.AdventureCatalog);
+        adventure.Put(System.Text.Json.JsonSerializer.Serialize(_adventure));
+        session.Peer.Send(adventure, DeliveryMethod.ReliableOrdered);
         SendAssetManifest(session);
         SendCharacterList(session);
         Log.Info($"'{account.Username}' logged in.");
@@ -261,6 +269,7 @@ internal sealed partial class GameServer
         var slot = reader.GetByte();
         var name = Clean(reader.GetString(), Constants.MaxNameLength);
         var look = Appearance.Read(reader);
+        if (_adventure.EmergentAppearance) look = new Appearance(0, 0, 0, 0, 0);
 
         string? problem = slot >= Constants.MaxCharacters ? "Espaço inválido."
             : account.Characters[slot] != null ? "Esse espaço já tem um personagem."
@@ -336,7 +345,10 @@ internal sealed partial class GameServer
             LastBudgetCheckMs = _clock.ElapsedMilliseconds,
             Level = Math.Clamp(save.Level, 1, Formulas.MaxLevel),
             Exp = Math.Max(0, save.Exp),
+            Journey = save.Journey ?? new Journey(),
         };
+        player.Journey.Legacy = account.Legacy;
+        _evolution.Apply(player.Journey);
         player.Hp = save.Hp > 0 ? Math.Min(save.Hp, player.MaxHp) : player.MaxHp;
         player.Mp = save.Mp >= 0 ? Math.Min(save.Mp, player.MaxMp) : player.MaxMp;
 
@@ -349,6 +361,8 @@ internal sealed partial class GameServer
         session.Player = player;
         PlaceOnMap(player, map, x, y);
         SendVitals(player);
+        SendJourney(player);
+        SendAdventureCatalog(player);
         BroadcastChat(player.MapId, "", $"{player.Name} chegou.");
         Log.Info($"{player.Name} (#{player.Id}, '{account.Username}') entered map {map.Id} at {x},{y}.");
     }
@@ -382,6 +396,8 @@ internal sealed partial class GameServer
         }
         Broadcast(map.Id, Joined(player), except: player);
         SendNpcs(player, map);
+        foreach (var other in others) player.Peer.Send(FormPacket(other), DeliveryMethod.ReliableOrdered);
+        BroadcastForm(player);
     }
 
     /// <summary>Moves a player to another map (or another spot on the same one).</summary>
@@ -481,6 +497,10 @@ internal sealed partial class GameServer
         player.X += dx;
         player.Y += dy;
         player.MoveBudgetMs -= StepCostMs;
+
+        player.Journey.Steps = Math.Min(1_000_000, player.Journey.Steps + 1);
+        if (player.Journey.Steps % 10 == 0) RecordHabit(player, "explore");
+        if (player.Journey.Steps % 25 == 0) SendJourney(player);
 
         var moved = PacketIO.Begin(PacketType.PlayerMoved);
         moved.Put(player.Id);
