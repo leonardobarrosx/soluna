@@ -15,7 +15,7 @@ O conteúdo visual novo foi produzido para Soluna com a ferramenta de imagens da
 | `props/cottage.png`, `props/pine.png`, `props/ruin.png` | Casa, árvore e entrada das ruínas, ordenadas por profundidade no mundo. |
 | `interface/title.png` | Arte de abertura. |
 
-Essas imagens são originais geradas a partir de descrições e revisões para o projeto. As referências de atmosfera não são fontes de recursos extraídos de Moonlighter, Crystalshire ou RPG Maker.
+Essas imagens são originais geradas a partir de descrições e revisões para o projeto com base em pixelart original feita em aseprite.
 
 ## Importação e animação
 
