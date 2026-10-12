@@ -24,7 +24,8 @@ internal sealed record ClientOptions(
     string Host, int Port, string Name, string? User = null, string? Password = null, bool Play = false,
     string? Screenshot = null, bool Walk = false, bool Editor = false, bool Inventory = false, bool Creation = false,
     string? GameEditorTab = null, string? EditorMode = null, string? Import = null, bool Journal = false, bool ArtPreview = false,
-    int? MapPreview = null, bool Overview = false, bool SceneryPreview = false);
+    int? MapPreview = null, bool Overview = false, bool SceneryPreview = false,
+    int? DungeonPreview = null, int PreviewSeed = 83, int PreviewPage = 0);
 
 internal enum Stage
 {
@@ -94,6 +95,8 @@ internal sealed class SolunaGame : Game
     private bool _night = true;
     private bool _overview;
     private Dictionary<string, MapProp>? _sceneryCatalog;
+    private int _sceneryPage;
+    private bool ScenePreview => _options.MapPreview != null || _options.DungeonPreview != null;
 
     // Set while walking off a map's edge, until the server answers with the next map.
     private bool _awaitingTransfer;
@@ -187,7 +190,8 @@ internal sealed class SolunaGame : Game
         };
         _assets = new AssetSync(path => Send(PacketType.AssetRequest, w => w.Put(path)));
         if (_options.Import != null) _pendingImport = _options.Import;
-        if (_options.MapPreview is { } mapId) LoadMapPreview(mapId);
+        _sceneryPage = Math.Max(0, _options.PreviewPage);
+        if (ScenePreview) LoadMapPreview();
         else if (!_options.ArtPreview) Connect();
     }
 
@@ -196,10 +200,12 @@ internal sealed class SolunaGame : Game
     private Point Screen => new(GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height);
 
     /// <summary>Read-only scene review for map authors; no server, accounts or saves.</summary>
-    private void LoadMapPreview(int id)
+    private void LoadMapPreview()
     {
-        _map = MapData.FromBytes(File.ReadAllBytes(Path.Combine(DataPaths.Data, "maps", $"{id}.json")));
         _journey.Content = AdventureContent.Load();
+        _map = _options.DungeonPreview is { } depth
+            ? DungeonGenerator.Build(_journey.Content.Dungeon ?? throw new InvalidOperationException("Este jogo não tem masmorra."), _options.PreviewSeed, depth)
+            : MapData.FromBytes(File.ReadAllBytes(Path.Combine(DataPaths.Data, "maps", $"{_options.MapPreview}.json")));
         _local = new Character(0, "Eco", new Appearance(0, 0, 0, 0, 0), new Equipment());
         _local.Place(_map.SpawnX, _map.SpawnY, Direction.Down);
         var catalog = NpcCatalog.Load();
@@ -612,7 +618,7 @@ internal sealed class SolunaGame : Game
         var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
         _stageSeconds += dt;
         _input.Update(IsActive && _options.Screenshot == null);
-        if (_options.MapPreview != null)
+        if (ScenePreview)
         {
             _worldTime += dt;
             if (_input.Pressed(Keys.Escape)) Exit();
@@ -642,6 +648,7 @@ internal sealed class SolunaGame : Game
         if (_options.ArtPreview)
         {
             if (_input.Pressed(Keys.Escape)) Exit();
+            if (_input.Pressed(Keys.Tab)) _sceneryPage++;
             base.Update(gameTime);
             return;
         }
@@ -974,7 +981,7 @@ internal sealed class SolunaGame : Game
     {
         GraphicsDevice.Clear(Theme.Background);
 
-        if (_options.MapPreview != null)
+        if (ScenePreview)
         {
             DrawWorld(_map!, _local!);
             _batch.Begin(samplerState: SamplerState.PointClamp);
@@ -1069,11 +1076,12 @@ internal sealed class SolunaGame : Game
             _batch.Draw(_forms.Get(forms[i].Item2), new Rectangle(x + 20, 323, 108, 144), Color.White);
         }
         var atlas = _textures.Tileset("soluna/atlas.png");
-        Ui.Text(_batch, _fonts.Body, "32 superfícies / 48 objetos", new Vector2(32, 485), Theme.TextDim);
-        for (var row = 0; row < 5; row++)
+        var tileRows = _sceneryPage % 2 == 0 ? new[] { 0, 128, 96, 144, 160 } : new[] { 176, 192, 208 };
+        Ui.Text(_batch, _fonts.Body, $"48 superfícies / 80 objetos · página {_sceneryPage % 2 + 1}/2 · Tab alterna", new Vector2(32, 485), Theme.TextDim);
+        for (var row = 0; row < tileRows.Length; row++)
         for (var i = 0; i < 16; i++)
         {
-            var tile = new[] { 0, 128, 96, 144, 160 }[row] + i;
+            var tile = tileRows[row] + i;
             _batch.Draw(atlas, new Rectangle(32 + i * 74, 515 + row * 40, 36, 36),
                 new Rectangle(tile % 16 * 32, tile / 16 * 32, 32, 32), Color.White);
         }
@@ -1086,21 +1094,24 @@ internal sealed class SolunaGame : Game
         _sceneryCatalog ??= File.Exists(path)
             ? System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, MapProp>>(File.ReadAllText(path)) ?? [] : [];
         _batch.Begin(samplerState: SamplerState.PointClamp);
-        Ui.Text(_batch, _fonts.Heading, "SOLUNA  /  ARQUITETURA E PAISAGEM", new Vector2(30, 18), Theme.Sol);
+        var pageCount = Math.Max(1, (_sceneryCatalog.Count + 31) / 32);
+        var page = _sceneryPage % pageCount;
+        Ui.Text(_batch, _fonts.Heading, $"SOLUNA  /  CENÁRIOS   {page + 1}/{pageCount}", new Vector2(30, 18), Theme.Sol);
         var index = 0;
-        foreach (var (name, prop) in _sceneryCatalog)
+        foreach (var (name, prop) in _sceneryCatalog.Skip(page * 32).Take(32))
         {
-            var building = index < 4;
-            var x = building ? 32 + index * 310 : 32 + (index - 4) % 8 * 155;
-            var y = building ? 80 : 285 + (index - 4) / 8 * 103;
-            var boxWidth = building ? 258 : 125;
-            var boxHeight = building ? 168 : 73;
+            var x = 32 + index % 8 * ((Screen.X - 64) / 8);
+            var y = 76 + index / 8 * ((Screen.Y - 110) / 4);
+            var boxWidth = (Screen.X - 64) / 8 - 18;
+            var boxHeight = (Screen.Y - 110) / 4 - 30;
             var scale = Math.Min(boxWidth / (float)prop.Width, boxHeight / (float)prop.Height);
             var w = (int)(prop.Width * scale); var h = (int)(prop.Height * scale);
             _renderer.DrawProp(_batch, prop, new Rectangle(x + (boxWidth - w) / 2, y + boxHeight - h, w, h));
             Ui.Text(_batch, _fonts.Small, name, new Vector2(x, y + boxHeight + 4), Theme.TextDim);
             index++;
         }
+        if (_options.Screenshot == null)
+            Ui.Text(_batch, _fonts.Small, "Tab · próxima página     Esc · sair", new Vector2(30, Screen.Y - 24), Theme.TextDim);
         _batch.End();
     }
 
@@ -1119,11 +1130,13 @@ internal sealed class SolunaGame : Game
     {
         _batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, transformMatrix: _camera.Transform);
 
-        _renderer.DrawLayers(_batch, map, _camera, 0, map.FringeFrom);
+        _renderer.DrawLayers(_batch, map, _camera, 0, Math.Min(1, map.FringeFrom));
+        foreach (var prop in map.Props.Where(p => p.Underfoot)) _renderer.DrawProp(_batch, prop);
+        _renderer.DrawLayers(_batch, map, _camera, Math.Min(1, map.FringeFrom), map.FringeFrom);
         var units = _others.Values.Append(local).Select(c => (c, sheet: PlayerSheet(c)))
             .Concat(_npcs.Values.Select(n => (n.view, sheet: NpcSheet(n.def))));
         var actors = units.Select(u => (depth: u.Item1.Position.Y + 32, draw: (Action)(() => _renderer.DrawCharacter(_batch, u.Item1, u.sheet))));
-        var props = map.Props.Select(prop => (depth: prop.Underfoot ? float.NegativeInfinity : (prop.Y + prop.Height) * 32f,
+        var props = map.Props.Where(p => !p.Underfoot).Select(prop => (depth: (prop.Y + prop.Height) * 32f,
             draw: (Action)(() => _renderer.DrawProp(_batch, prop))));
         foreach (var entry in actors.Concat(props).OrderBy(entry => entry.depth)) entry.draw();
         _renderer.DrawLayers(_batch, map, _camera, map.FringeFrom, map.Layers.Length);

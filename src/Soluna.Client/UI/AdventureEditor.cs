@@ -11,9 +11,10 @@ namespace Soluna.Client.UI;
 /// </summary>
 internal sealed class AdventureEditor(Gui gui)
 {
-    public enum Section { Resources, Activities, Supplies, Effects, Recipes, Shop, Objectives, Memories, General, Texts }
+    public enum Section { Resources, Activities, Supplies, Effects, Recipes, Shop, Objectives, Memories, General, Texts, Dungeon }
 
-    private static readonly string[] SectionNames = ["Materiais", "Ofícios", "Suprimentos", "Efeitos", "Receitas", "Loja", "Objetivos", "Memórias", "Geral", "Textos"];
+    private static readonly string[] SectionNames = ["Materiais", "Ofícios", "Suprimentos", "Efeitos", "Receitas", "Loja", "Objetivos", "Memórias", "Geral", "Textos", "Ruínas"];
+    private Dictionary<string, MapProp>? _scenery;
 
     /// <summary>Landmark kinds that run a profession, with the name the editor shows.</summary>
     private static readonly (string id, string name)[] GatherKinds =
@@ -103,6 +104,7 @@ internal sealed class AdventureEditor(Gui gui)
             case Section.Memories: DrawMemories(area); break;
             case Section.General: DrawGeneral(area, npcs); break;
             case Section.Texts: DrawTexts(area); break;
+            case Section.Dungeon: DrawDungeon(area); break;
         }
     }
 
@@ -305,6 +307,64 @@ internal sealed class AdventureEditor(Gui gui)
         dungeon.Boss = PickNpc(Gui.Field(x, y, half), "Chefe", npcs, dungeon.Boss);
         dungeon.BossEvery = gui.NumberField("dun-every", Gui.Field(x + half + 8, y, half), "A cada (andares)", dungeon.BossEvery, 1, 99); y += 42;
         if (gui.Button(new Rectangle(x, y, w, 28), "Remover masmorra")) _draft.Dungeon = null;
+    }
+
+    private void DrawDungeon(Rectangle area)
+    {
+        if (_draft.Dungeon is not { } dungeon)
+        {
+            gui.Label(new Vector2(area.X, area.Y), "Crie uma masmorra na seção Geral para definir os cenários.", Theme.TextDim);
+            return;
+        }
+        var w = Math.Min(300, (area.Width - 40) / 3); var half = (w - 8) / 2;
+        var (x, y) = (area.X, area.Y);
+        dungeon.Tileset = gui.TextField("dun-tileset", Gui.Field(x, y, w), "Tileset", dungeon.Tileset, 120); y += 42;
+        dungeon.FloorTile = gui.NumberField("dun-floor", Gui.Field(x, y, half), "Piso", dungeon.FloorTile, 0, 65535);
+        dungeon.WallTile = gui.NumberField("dun-wall", Gui.Field(x + half + 8, y, half), "Parede / vazio", dungeon.WallTile, -1, 65535); y += 42;
+        dungeon.WallFaceTile = gui.NumberField("dun-face", Gui.Field(x, y, w), "Frente da parede (-1: omitir)", dungeon.WallFaceTile, -1, 65535); y += 42;
+        dungeon.FloorVariants = IntList("dun-variants", Gui.Field(x, y, w), "Variações de piso", dungeon.FloorVariants, 0, 65535); y += 42;
+        dungeon.ExitTile = gui.NumberField("dun-exit", Gui.Field(x, y, half), "Saída", dungeon.ExitTile, -1, 65535);
+        dungeon.DescentTile = gui.NumberField("dun-stairs", Gui.Field(x + half + 8, y, half), "Descida", dungeon.DescentTile, -1, 65535); y += 42;
+        dungeon.ChestTile = gui.NumberField("dun-chest", Gui.Field(x, y, half), "Baú", dungeon.ChestTile, -1, 65535);
+        dungeon.ExtractionTile = gui.NumberField("dun-crystal", Gui.Field(x + half + 8, y, half), "Extração", dungeon.ExtractionTile, -1, 65535); y += 52;
+        gui.Label(new Vector2(x, y), "As mudanças valem para novos andares.\n-1 mantém o piso ou omite a peça.\nO gerador preserva as passagens.", Theme.TextDim, small: true);
+
+        x += w + 20; y = area.Y;
+        var styles = dungeon.RoomStyles;
+        var selected = gui.List("dun-styles", new Rectangle(x, y, w, 140), styles.Select(s => s.Name).ToList(), Sel("dun-styles"));
+        _selected["dun-styles"] = selected; y += 148;
+        if (gui.Button(new Rectangle(x, y, half, 28), "+ Estilo", enabled: styles.Count < 16))
+        { styles.Add(new DungeonRoomStyle()); _selected["dun-styles"] = styles.Count - 1; }
+        if (gui.Button(new Rectangle(x + half + 8, y, half, 28), "Remover", enabled: selected >= 0 && selected < styles.Count))
+        { styles.RemoveAt(selected); return; }
+        if (selected < 0 || selected >= styles.Count) return;
+        var style = styles[selected]; y += 38;
+        style.Name = gui.TextField("style-name", Gui.Field(x, y, w), "Nome do estilo", style.Name); y += 42;
+        style.MinDepth = gui.NumberField("style-depth", Gui.Field(x, y, w), "Surge a partir do andar", style.MinDepth, 1, 1000000); y += 42;
+        style.FloorTile = gui.NumberField("style-floor", Gui.Field(x, y, half), "Piso", style.FloorTile, -1, 65535);
+        style.BorderTile = gui.NumberField("style-border", Gui.Field(x + half + 8, y, half), "Borda", style.BorderTile, -1, 65535);
+
+        x += w + 20; y = area.Y;
+        var catalog = Path.Combine(DataPaths.Assets, "props", "catalog.json");
+        _scenery ??= File.Exists(catalog)
+            ? System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, MapProp>>(File.ReadAllText(catalog)) ?? [] : [];
+        string Name(MapProp p) => _scenery.FirstOrDefault(kv => kv.Value.Sprite == p.Sprite && kv.Value.Source.SequenceEqual(p.Source)).Key ?? p.Sprite;
+        var decorations = style.Decorations;
+        var part = gui.List("dun-pieces", new Rectangle(x, y, w, 140), decorations.Select(d => Name(d.Prop)).ToList(), Sel("dun-pieces"));
+        _selected["dun-pieces"] = part; y += 148;
+        MapProp Copy(MapProp p) => new() { Sprite = p.Sprite, Source = [..p.Source], Width = p.Width, Height = p.Height, Underfoot = p.Underfoot, Solid = [..p.Solid] };
+        if (gui.Button(new Rectangle(x, y, half, 28), "+ Peça", enabled: decorations.Count < 16 && _scenery.Count > 0))
+        { decorations.Add(new DungeonDecoration { Prop = Copy(_scenery.First().Value) }); _selected["dun-pieces"] = decorations.Count - 1; }
+        if (gui.Button(new Rectangle(x + half + 8, y, half, 28), "Remover", enabled: part >= 0 && part < decorations.Count))
+        { decorations.RemoveAt(part); return; }
+        if (part < 0 || part >= decorations.Count) return;
+        var piece = decorations[part]; y += 38;
+        var current = Name(piece.Prop);
+        var picked = Pick(Gui.Field(x, y, w), "Peça do catálogo", _scenery.Keys.Select(k => (k, k)).ToList(), current); y += 42;
+        if (picked != current && _scenery.TryGetValue(picked, out var prop)) piece.Prop = Copy(prop);
+        piece.Anchor = (RoomAnchor)gui.Cycle(Gui.Field(x, y, w), "Posição na sala", ["Noroeste", "Nordeste", "Sudoeste", "Sudeste", "Centro"], (int)piece.Anchor); y += 42;
+        piece.OffsetX = gui.NumberField("piece-x", Gui.Field(x, y, half), "Deslocamento X", piece.OffsetX, -32, 32);
+        piece.OffsetY = gui.NumberField("piece-y", Gui.Field(x + half + 8, y, half), "Deslocamento Y", piece.OffsetY, -32, 32);
     }
 
     private void DrawTexts(Rectangle area)

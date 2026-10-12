@@ -51,6 +51,9 @@ Check("procedural rooms and exits are connected across 80 layouts", () =>
         Require(m.Landmarks.All(l=>seen.Contains((l.X,l.Y))),$"Unreachable landmark seed {seed} depth {depth}");
         Require(m.Npcs.All(n=>seen.Contains((n.X,n.Y))),"Unreachable encounter");
         Require(m.Npcs.Select(n=>(n.X,n.Y)).Distinct().Count()==m.Npcs.Count);
+        Require(seen.Count == m.Attributes.Count(a => a != (byte)TileAttribute.Blocked), "Scenery stranded a walkable pocket");
+        Require(m.Props.Count > 10 && m.Props.Any(p => p.Underfoot), "Missing room composition");
+        Require(m.Props.All(p => p.X >= 0 && p.Y >= 0 && p.X + p.Width <= m.Width && p.Y + p.Height <= m.Height));
     }
 });
 Check("dungeons reproduce a seed and vary between seeds", () =>
@@ -63,9 +66,29 @@ Check("difficulty increases without mutating shared NPC definitions", () =>
     var original=NpcCatalog.Load().Get(10)!;var a=DungeonGenerator.Scale(original,1);var b=DungeonGenerator.Scale(original,20);
     Require(b.Hp>a.Hp&&b.Attack>a.Attack&&original.Hp==24);
 });
+Check("dungeon themes use game tiles without moving encounters", () =>
+{
+    var settings = AdventureContent.Parse(content.ToJson()).Dungeon!;
+    var decorated = DungeonGenerator.Build(settings, 91, 3);
+    settings.RoomStyles.Clear(); settings.FloorTile = 31; settings.FloorVariants = [32]; settings.WallTile = 33;
+    settings.WallFaceTile = 34; settings.ExitTile = 35; settings.DescentTile = 36; settings.ChestTile = 37; settings.ExtractionTile = 38;
+    var plain = DungeonGenerator.Build(settings, 91, 3);
+    Require(plain.Props.Count == 0 && plain.Layers[0].All(t => t is >= 31 and <= 34), "A game-specific floor leaked into the generator");
+    Require(plain.Layers[1].All(t => t == -1 || t is >= 35 and <= 38), "A game-specific marker leaked into the generator");
+    Require(plain.Npcs.Select(n => (n.NpcId, n.X, n.Y)).SequenceEqual(decorated.Npcs.Select(n => (n.NpcId, n.X, n.Y))));
+    Require(plain.Spawn == decorated.Spawn);
+});
+Check("invalid dungeon shapes and null collections are rejected", () =>
+{
+    var settings = AdventureContent.Parse(content.ToJson()).Dungeon!;
+    settings.RoomStyles[0].Decorations[0].Prop.Solid = [0, 0, 99, 99];
+    Require(settings.Problems().Count > 0);
+    settings.RoomStyles = null!; settings.FloorVariants = null!; settings.Enemies = null!;
+    Require(settings.Problems().Count > 0);
+});
 Check("shipped world landmarks and portals are reachable", () =>
 {
-    foreach(var id in new[]{1,2})
+    foreach(var id in new[]{1,2,3,4,5,6})
     {
         var m=MapData.FromBytes(File.ReadAllBytes(Path.Combine(DataPaths.Data,"maps",$"{id}.json")));
         var seen=new HashSet<(int,int)>();var q=new Queue<(int,int)>();q.Enqueue(m.Spawn);
@@ -76,6 +99,7 @@ Check("shipped world landmarks and portals are reachable", () =>
         {
             var target=MapData.FromBytes(File.ReadAllBytes(Path.Combine(DataPaths.Data,"maps",$"{warp.Map}.json")));
             Require(target.IsWalkable(warp.ToX,warp.ToY), $"Map {id}: portal arrives inside scenery");
+            Require(target.WarpAt(warp.ToX,warp.ToY) == null, $"Map {id}: portal arrives on another trigger");
         }
     }
 });
@@ -108,7 +132,7 @@ Check("authored art pages cover native frames with valid source rectangles", () 
 
 Check("authored scenery survives map serialization and uses valid art crops", () =>
 {
-    foreach (var id in new[] { 1, 2 })
+    foreach (var id in new[] { 1, 2, 3, 4, 5, 6 })
     {
         var original = MapData.FromBytes(File.ReadAllBytes(Path.Combine(DataPaths.Data, "maps", $"{id}.json")));
         var map = MapData.FromBytes(original.ToBytes());
@@ -175,6 +199,19 @@ try
     var player=new Probe("player","Player",password,port);clients.Add(player);
     Check("two clients authenticate and enter through UDP",()=>{Until(()=>admin.Journey!=null&&player.Journey!=null);Require(admin.Id!=player.Id&&player.Map==1&&player.FormCount>0);});
     Check("non-admin cannot teleport",()=>{player.Chat("/ir 2");Pump(150);Require(player.Map==1&&player.Messages.Any(m=>m.Contains("administrador")));});
+    Check("all four doorways enter interiors and return by network movement", () =>
+    {
+        foreach (var door in maps.Get(1).Warps.Where(w => w.Map is >= 3 and <= 6))
+        {
+            Warp(admin, 1, door.X, door.Y + 1);
+            admin.Send(PacketType.MoveRequest, w => { w.Put((byte)Direction.Up); w.Put(door.X); w.Put(door.Y + 1); });
+            Until(() => admin.Map == door.Map); Pump(500);
+            admin.Send(PacketType.MoveRequest, w => { w.Put((byte)Direction.Down); w.Put(door.ToX); w.Put(door.ToY); });
+            Until(() => admin.Map == 1); Pump(600);
+            Require(admin.Map == 1, "Returning to the doorstep bounced back inside");
+        }
+        Warp(admin, 1, 22, 22);
+    });
     Check("crafting is rejected away from a workbench",()=>{var ore=player.Journey!.Resources["ore"];player.Action(AdventureAction.Craft,"smelt");Pump(550);Require(player.Journey.Resources["ore"]==ore);});
     Check("crafting consumes exact ingredients and grants output",()=>{Warp(player,1,17,24);player.Action(AdventureAction.Craft,"smelt");Until(()=>player.Journey!.Resources.GetValueOrDefault("ingot")==1);Require(player.Journey!.Resources["ore"]==17&&player.Journey.Resources["wood"]==18);});
     Check("fishing grants resources and server cooldown prevents spam",()=>{Warp(player,2,12,34);player.Action(AdventureAction.Interact);Until(()=>player.Journey!.Catches==1);var fish=player.Journey!.Resources["fish"];Pump(500);player.Action(AdventureAction.Interact);Pump(500);Require(player.Journey.Catches==1&&player.Journey.Resources["fish"]==fish);});
@@ -231,6 +268,12 @@ try
         var broken=AdventureContent.Parse(admin.Adventure!);broken.Recipes[0].Costs["nada"]=1;
         Save(admin,ContentKind.Adventure,broken.ToJson());Pump(400);
         Require(AdventureContent.Load().Recipes[0].Costs.Count==edited.Recipes[0].Costs.Count,"Broken content was saved");
+        broken=AdventureContent.Parse(admin.Adventure!);broken.Dungeon!.Enemies=[999999];
+        Save(admin,ContentKind.Adventure,broken.ToJson());Pump(400);
+        Require(!AdventureContent.Load().Dungeon!.Enemies.Contains(999999),"An unknown dungeon enemy was saved");
+        broken=AdventureContent.Parse(admin.Adventure!);broken.Dungeon!.RoomStyles[0].Decorations[0].Prop.Solid=[0,0,99,99];
+        Save(admin,ContentKind.Adventure,broken.ToJson());Pump(400);
+        Require(AdventureContent.Load().Dungeon!.RoomStyles[0].Decorations[0].Prop.Solid.Length==0,"An invalid room footprint was saved");
         var rules=EvolutionRules.Parse(admin.Evolution!);rules.Rules[0].Tint="vermelho";
         Save(admin,ContentKind.Evolution,rules.ToJson());Pump(400);
         Require(EvolutionRules.Load().Rules[0].Tint!="vermelho","A bad colour was saved");

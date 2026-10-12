@@ -6,10 +6,13 @@ using Soluna.Shared;
 //   [--game soluna]   which game under games/ to load art from
 //   [--name Leo] [--walk] [--editor] [--inventory] [--creation] [--import file.png] [--screenshot shot.png]   for testing
 //   --art-preview | --scenery-preview | --map-preview <id> [--overview]   local read-only art review
+//   --dungeon-preview <depth> [--seed <seed>] [--overview] | --preview-page <index>
 var host = "127.0.0.1";
 var port = Constants.DefaultPort;
 string? name = null, user = null, password = null, screenshot = null, editorMode = null, import = null;
-int? mapPreview = null;
+int? mapPreview = null, dungeonPreview = null;
+var previewSeed = 83;
+var previewPage = 0;
 var walk = args.Contains("--walk");
 var play = args.Contains("--play") || walk;
 var editor = args.Contains("--editor") || args.Contains("--editor-mode");
@@ -32,6 +35,9 @@ for (var i = 0; i < args.Length - 1; i++)
         case "--import": import = args[++i]; break;
         case "--game-editor-tab": gameEditorTab = args[++i]; break;
         case "--map-preview": mapPreview = int.Parse(args[++i]); break;
+        case "--dungeon-preview": dungeonPreview = int.Parse(args[++i]); break;
+        case "--seed": previewSeed = int.Parse(args[++i]); break;
+        case "--preview-page": previewPage = int.Parse(args[++i]); break;
     }
 }
 
@@ -43,5 +49,5 @@ if (walk && user == null && name != null)
 }
 
 using var game = new SolunaGame(new ClientOptions(
-    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory, creation, gameEditorTab, editorMode, import, args.Contains("--journal"), args.Contains("--art-preview") || args.Contains("--scenery-preview"), mapPreview, args.Contains("--overview"), args.Contains("--scenery-preview")));
+    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory, creation, gameEditorTab, editorMode, import, args.Contains("--journal"), args.Contains("--art-preview") || args.Contains("--scenery-preview"), mapPreview, args.Contains("--overview"), args.Contains("--scenery-preview"), dungeonPreview, previewSeed, previewPage));
 game.Run();

@@ -53,6 +53,9 @@ internal sealed partial class GameServer
                     var content = AdventureContent.Parse(json);
                     if (content.Problems(id => _items.Get(id) != null) is { Count: > 0 } problems)
                         throw new InvalidDataException(string.Join(" ", problems.Take(3)));
+                    if (content.Dungeon is { } dungeon && (dungeon.Enemies.Any(id => _npcs.Get(id) == null)
+                        || dungeon.Boss > 0 && _npcs.Get(dungeon.Boss) == null))
+                        throw new InvalidDataException("A masmorra referencia um NPC que não existe.");
                     var text = content.ToJson();
                     Write(AdventureContent.SourcePath, text);
                     _adventure = content;

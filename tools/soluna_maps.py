@@ -19,7 +19,7 @@ class Plan:
         self.w, self.h = width, height
         self.blocked = bytearray(width * height)
         self.routes = set()
-        self.m = dict(Id=id, Name=name, Width=width, Height=height, Revision=10,
+        self.m = dict(Id=id, Name=name, Width=width, Height=height, Revision=12, Luck=0,
                       Moral=0, Depth=0, Seed=seed, Music='', Links={}, Warps=[], Npcs=[],
                       Landmarks=[], Props=[], Tilesets=['soluna/atlas.png'],
                       Layers=[[GRASS] * (width * height)] + [[-1] * (width * height) for _ in range(4)],
@@ -63,6 +63,7 @@ class Plan:
             p['Width'] = width
         if height is not None:
             p['Height'] = height
+        p['Solid'] = list(solid or [])
         self.m['Props'].append(p)
         # Footprints belong to the map, independent of sprite transparency.
         if solid:
@@ -75,6 +76,7 @@ class Plan:
 
     def tree(self, name, x, y, w=None, h=None):
         p = self.prop(name, x, y, w, h)
+        p['Solid'] = [p['Width']//2, p['Height']-1, 1, 1]
         tx, ty = x+p['Width']//2, y+p['Height']-1
         if self.inside(tx, ty):
             self.blocked[ty*self.w+tx] = 1
@@ -115,6 +117,7 @@ class Plan:
 
 def village():
     p = Plan(1, 'Vigília de Soluna', 44, 36, 83, (22, 21))
+    p.m['Luck'] = 1
     # Connected districts: memorial approach, market square, herb garden, mill bank.
     for x, y, rx, ry in [(6, 7, 8, 5), (36, 7, 8, 5), (6, 31, 8, 5), (29, 33, 8, 3)]:
         p.oval(x, y, rx, ry, MOSS)
@@ -216,11 +219,18 @@ def village():
     p.point(2, 'O sino da vigília', 24, 25)
     p.m['Npcs'] = [dict(NpcId=1, X=14, Y=22), dict(NpcId=2, X=23, Y=17)]
     p.warp(range(20, 25), 4, 2, (24, 41))
+    # Doorstep triggers sit in front of the facade's solid foundation.
+    p.path([(34, 25), (35, 26), (38, 27)], .7, GRAVEL)
+    for x, y, interior in [(8, 16, 3), (10, 29, 4), (33, 15, 5), (38, 26, 6)]:
+        p.tile(x, y, PLANK, blocked=False)
+        p.tile(x, y+1, COBBLE, blocked=False)
+        p.warp([x], y, interior, (16, 19))
     return p.finish()
 
 
 def forest():
     p = Plan(2, 'Bosque dos Esquecidos', 48, 48, 192, (24, 41))
+    p.m['Luck'] = 3
     p.rect(0, 0, 48, 48, MOSS)
     # Clearings have irregular, overlapping outlines; their connecting routes form a loop.
     for x, y, rx, ry in [(24, 39, 6, 6), (19, 34, 8, 5), (28, 31, 7, 5), (23, 25, 6, 6),
@@ -324,4 +334,5 @@ def forest():
 
 
 def authored_maps():
-    return [village(), forest()]
+    from soluna_interiors import interiors
+    return [village(), forest(), *interiors()]

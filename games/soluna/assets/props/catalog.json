@@ -229,7 +229,13 @@
       213
     ],
     "Width": 1,
-    "Height": 1
+    "Height": 1,
+    "Solid": [
+      0,
+      0,
+      1,
+      1
+    ]
   },
   "fern": {
     "Sprite": "atlases/nature.png",
@@ -240,7 +246,13 @@
       209
     ],
     "Width": 1,
-    "Height": 1
+    "Height": 1,
+    "Solid": [
+      0,
+      0,
+      1,
+      1
+    ]
   },
   "fallen-log": {
     "Sprite": "atlases/nature.png",
@@ -251,7 +263,13 @@
       188
     ],
     "Width": 2,
-    "Height": 1
+    "Height": 1,
+    "Solid": [
+      0,
+      0,
+      2,
+      1
+    ]
   },
   "mushrooms": {
     "Sprite": "atlases/nature.png",
@@ -262,7 +280,13 @@
       209
     ],
     "Width": 1,
-    "Height": 1
+    "Height": 1,
+    "Solid": [
+      0,
+      0,
+      1,
+      1
+    ]
   },
   "herbs": {
     "Sprite": "atlases/nature.png",
@@ -273,7 +297,13 @@
       221
     ],
     "Width": 1,
-    "Height": 1
+    "Height": 1,
+    "Solid": [
+      0,
+      0,
+      1,
+      1
+    ]
   },
   "woodpile": {
     "Sprite": "atlases/nature.png",
@@ -284,7 +314,13 @@
       214
     ],
     "Width": 2,
-    "Height": 1
+    "Height": 1,
+    "Solid": [
+      0,
+      0,
+      2,
+      1
+    ]
   },
   "rubble": {
     "Sprite": "atlases/nature.png",
@@ -295,7 +331,13 @@
       217
     ],
     "Width": 2,
-    "Height": 1
+    "Height": 1,
+    "Solid": [
+      0,
+      0,
+      2,
+      1
+    ]
   },
   "fountain": {
     "Sprite": "atlases/furnishings.png",
@@ -341,7 +383,8 @@
     ],
     "Width": 3,
     "Height": 4,
-    "Underfoot": true
+    "Underfoot": true,
+    "Solid": []
   },
   "notice": {
     "Sprite": "atlases/furnishings.png",
@@ -454,7 +497,13 @@
       278
     ],
     "Width": 2,
-    "Height": 2
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      2,
+      1
+    ]
   },
   "planter": {
     "Sprite": "atlases/furnishings.png",
@@ -465,7 +514,13 @@
       213
     ],
     "Width": 2,
-    "Height": 1
+    "Height": 1,
+    "Solid": [
+      0,
+      0,
+      2,
+      1
+    ]
   },
   "well": {
     "Sprite": "atlases/furnishings.png",
@@ -528,7 +583,8 @@
     ],
     "Width": 5,
     "Height": 2,
-    "Underfoot": true
+    "Underfoot": true,
+    "Solid": []
   },
   "camp": {
     "Sprite": "atlases/furnishings.png",
@@ -544,6 +600,534 @@
       0,
       1,
       1,
+      1
+    ]
+  },
+  "hearth": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      32,
+      6,
+      317,
+      316
+    ],
+    "Width": 3,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      3,
+      1
+    ]
+  },
+  "tavern-bar": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      370,
+      50,
+      356,
+      271
+    ],
+    "Width": 4,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      4,
+      1
+    ]
+  },
+  "dining-table": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      733,
+      99,
+      357,
+      203
+    ],
+    "Width": 3,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      3,
+      1
+    ]
+  },
+  "bed": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      1090,
+      19,
+      248,
+      303
+    ],
+    "Width": 2,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      2,
+      1
+    ]
+  },
+  "bookcase": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      68,
+      322,
+      245,
+      286
+    ],
+    "Width": 2,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      2,
+      1
+    ]
+  },
+  "herb-shelf": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      405,
+      342,
+      299,
+      268
+    ],
+    "Width": 3,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      3,
+      1
+    ]
+  },
+  "alchemy-table": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      733,
+      340,
+      334,
+      270
+    ],
+    "Width": 3,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      3,
+      1
+    ]
+  },
+  "cauldron": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      1094,
+      322,
+      276,
+      288
+    ],
+    "Width": 2,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      2,
+      1
+    ]
+  },
+  "anvil": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      67,
+      652,
+      257,
+      212
+    ],
+    "Width": 2,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      2,
+      1
+    ]
+  },
+  "weapon-rack": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      393,
+      610,
+      311,
+      268
+    ],
+    "Width": 3,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      3,
+      1
+    ]
+  },
+  "coal-forge": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      744,
+      605,
+      319,
+      267
+    ],
+    "Width": 3,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      3,
+      1
+    ]
+  },
+  "bellows": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      1095,
+      610,
+      278,
+      243
+    ],
+    "Width": 2,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      2,
+      1
+    ]
+  },
+  "grindstone": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      42,
+      880,
+      327,
+      223
+    ],
+    "Width": 3,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      3,
+      1
+    ]
+  },
+  "flour-sacks": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      396,
+      878,
+      322,
+      217
+    ],
+    "Width": 3,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      3,
+      1
+    ]
+  },
+  "fish-rack": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      744,
+      888,
+      298,
+      208
+    ],
+    "Width": 3,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      3,
+      1
+    ]
+  },
+  "teal-rug": {
+    "Sprite": "atlases/interiors.png",
+    "Source": [
+      1090,
+      898,
+      272,
+      201
+    ],
+    "Width": 4,
+    "Height": 3,
+    "Underfoot": true,
+    "Solid": []
+  },
+  "column": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      144,
+      10,
+      173,
+      349
+    ],
+    "Width": 1,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      1,
+      1
+    ]
+  },
+  "broken-column": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      433,
+      163,
+      224,
+      188
+    ],
+    "Width": 2,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      2,
+      1
+    ]
+  },
+  "moon-statue": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      726,
+      11,
+      215,
+      341
+    ],
+    "Width": 2,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      2,
+      1
+    ]
+  },
+  "brazier": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      1087,
+      43,
+      196,
+      293
+    ],
+    "Width": 1,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      1,
+      1
+    ]
+  },
+  "sarcophagus": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      53,
+      387,
+      348,
+      195
+    ],
+    "Width": 3,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      3,
+      1
+    ]
+  },
+  "ritual-altar": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      434,
+      392,
+      285,
+      216
+    ],
+    "Width": 3,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      3,
+      1
+    ]
+  },
+  "archive": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      763,
+      353,
+      239,
+      265
+    ],
+    "Width": 2,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      2,
+      1
+    ]
+  },
+  "reliquary": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      1088,
+      371,
+      269,
+      253
+    ],
+    "Width": 2,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      2,
+      1
+    ]
+  },
+  "ruin-door": {
+    "Sprite": "props/ruin-door.png",
+    "Source": [
+      216,
+      179,
+      910,
+      899
+    ],
+    "Width": 3,
+    "Height": 3,
+    "Solid": [
+      0,
+      2,
+      3,
+      1
+    ]
+  },
+  "ruin-stairs": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      431,
+      650,
+      274,
+      205
+    ],
+    "Width": 3,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      3,
+      1
+    ]
+  },
+  "echo-crystals": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      765,
+      626,
+      242,
+      236
+    ],
+    "Width": 2,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      2,
+      1
+    ]
+  },
+  "root-pedestal": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      1071,
+      623,
+      306,
+      242
+    ],
+    "Width": 2,
+    "Height": 2,
+    "Solid": [
+      0,
+      1,
+      2,
+      1
+    ]
+  },
+  "moon-seal": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      47,
+      863,
+      338,
+      234
+    ],
+    "Width": 3,
+    "Height": 3,
+    "Underfoot": true,
+    "Solid": []
+  },
+  "ceremonial-rug": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      386,
+      893,
+      349,
+      189
+    ],
+    "Width": 3,
+    "Height": 2,
+    "Underfoot": true,
+    "Solid": []
+  },
+  "floor-grate": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      738,
+      876,
+      314,
+      220
+    ],
+    "Width": 2,
+    "Height": 2,
+    "Underfoot": true,
+    "Solid": []
+  },
+  "fallen-masonry": {
+    "Sprite": "atlases/ruins.png",
+    "Source": [
+      1054,
+      887,
+      322,
+      194
+    ],
+    "Width": 2,
+    "Height": 1,
+    "Solid": [
+      0,
+      0,
+      2,
       1
     ]
   }

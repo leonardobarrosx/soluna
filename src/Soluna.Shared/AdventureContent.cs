@@ -198,6 +198,7 @@ public sealed class AdventureContent
     public List<string> Problems(Func<int, bool> itemExists)
     {
         var problems = new List<string>();
+        if (Dungeon != null) problems.AddRange(Dungeon.Problems());
         void Duplicates<T>(IEnumerable<T> list, Func<T, string> id, string what)
         {
             foreach (var g in list.GroupBy(id).Where(g => g.Key.Length == 0 || g.Count() > 1))

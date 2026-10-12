@@ -33,7 +33,8 @@ Na morte, nível, experiência, forma, hábitos, inventário e recursos da vida 
 
 - **Vigília de Soluna:** praça do santuário, mercado e ferraria, pousada, jardim do herbalista e margem do moinho, com mercador, bancada e quadro de objetivos.
 - **Bosque dos Esquecidos:** trilhas em circuito entre lago com cais, clareira de madeira, afloramento de minério, cristais e pátio das ruínas, com exploração e combate.
-- **Ruínas do Eclipse:** salas e corredores procedurais, relicários, extração de essência e descida liberada após derrotar os inimigos do andar.
+- **Interiores acessíveis:** estalagem, ferraria, botica e moinho, ligados à vila por portas, com móveis, colisões e serviços. Bancadas e mercadores usam as receitas e ofertas do jogo; as camas ainda são decorativas.
+- **Ruínas do Eclipse:** salas e corredores procedurais, com composições de claustro, cripta, arquivo e raízes do eclipse; relicários, extração de essência e descida liberada após derrotar os inimigos do andar.
 - **Combate:** golpe corpo a corpo, pulso de essência em área, equipamentos, consumíveis e recompensas por derrotar criaturas. O Guardião do Eclipse aparece a cada terceiro andar.
 
 As ruínas não têm um último andar definido no conteúdo. A dificuldade aumenta com a profundidade, dentro dos limites numéricos da implementação. Uma nova expedição muda a semente quando não há jogadores nas ruínas. Os jogadores compartilham a expedição ativa; instâncias privadas por grupo ainda não existem. Semente e mapas são salvos, mas as criaturas reaparecem ao reiniciar o servidor.
@@ -48,9 +49,9 @@ A **sorte é variável**: soma a marca natural da conta, o ciclo dos espíritos,
 
 ### Visual atual
 
-O tileset reúne **32 superfícies e 48 objetos pequenos**. Um catálogo de **36 peças de cenário** reutiliza a vegetação e o mobiliário em escala maior e acrescenta quatro construções distintas: pousada, ferraria, herbalista e moinho. Há cercas, muros, bancos, fonte, bancas, ferramentas, estoques, cais, ponte, árvores de quatro tipos, rochas e plantas.
+O tileset reúne **48 superfícies e 80 objetos pequenos**. Um catálogo de **68 peças de cenário** inclui arquitetura, vegetação, mobiliário interno e ruínas: lareira, balcão, mesas, camas, estantes, alquimia, forja, moinho, colunas, estátuas, sarcófagos, altares, braseiros, tapetes e selos lunares.
 
-Os dois mapas externos têm composição definida em autoria: caminhos ligam entradas e serviços, construções possuem pátios, árvores formam grupos e os materiais aparecem em clareiras próprias. Transições de grama, musgo, terra, areia e água reduzem as bordas rígidas dos tiles. A revisão atual dos mapas é **10**. Os interiores desses novos prédios ainda são cenário; não há entrada para cômodos jogáveis.
+São **seis mapas fixos**, na revisão **12**: vila, bosque e quatro interiores. Caminhos ligam entradas e serviços, construções possuem pátios, árvores formam grupos e os materiais aparecem em clareiras próprias. Transições de grama, musgo, terra, areia e água reduzem as bordas rígidas dos tiles. Nas ruínas, pisos, bordas e peças são organizados por estilos de sala definidos nos dados; a colocação de obstáculos preserva o acesso aos corredores, encontros e saídas.
 
 Criaturas, habitantes e formas evoluídas mantêm suas folhas direcionais. O personagem inicial conserva a aparência neutra e o tamanho genérico; as cores e marcas das formas evoluídas acompanham a gameplay.
 
@@ -74,6 +75,20 @@ As capturas abaixo são do cliente em execução com a arte atual incluída nest
 
 ![Peças reutilizáveis de cenário renderizadas pelo cliente](docs/screenshots/scenery-preview.png)
 
+**Estalagem — interior acessível pela porta da vila**
+
+![Salão, lareira e dormitórios da estalagem no cliente](docs/screenshots/inn.png)
+
+Também há interiores próprios para a [ferraria](docs/screenshots/smithy.png), [botica](docs/screenshots/herbalist.png) e [moinho](docs/screenshots/mill.png). Veja as páginas novas de [móveis e ruínas](docs/screenshots/interior-props.png) e [pisos e tiles](docs/screenshots/interior-tiles.png).
+
+**Ruínas — terceiro andar gerado com a semente 83**
+
+![Cripta e arquivo com pisos, bordas, estátuas e mobiliário no cliente](docs/screenshots/ruins.png)
+
+A [visão geral desse andar](docs/screenshots/ruins-overview.png) mostra as salas e os corredores conectados. As imagens dos interiores e das ruínas são prévias locais de autoria, usando a renderização do jogo.
+
+Os estilos podem ser alterados na [nova seção Ruínas do editor F2](docs/screenshots/dungeon-editor.png).
+
 As vistas completas da [vila](docs/screenshots/village-overview.png) e do [bosque](docs/screenshots/forest-overview.png) mostram a composição dos mapas. São prévias de autoria renderizadas pelo próprio cliente.
 
 Para inspecionar os mapas e o catálogo sem servidor nem contas:
@@ -82,9 +97,12 @@ Para inspecionar os mapas e o catálogo sem servidor nem contas:
 dotnet run --project src/Soluna.Client -- --map-preview 1
 dotnet run --project src/Soluna.Client -- --map-preview 2 --overview
 dotnet run --project src/Soluna.Client -- --scenery-preview
+dotnet run --project src/Soluna.Client -- --scenery-preview --preview-page 1
+dotnet run --project src/Soluna.Client -- --map-preview 3 --overview
+dotnet run --project src/Soluna.Client -- --dungeon-preview 3 --seed 83 --overview
 ```
 
-Na prévia de mapas, WASD/setas movem o personagem respeitando colisões; Tab alterna a visão completa e Esc encerra. Esse modo é somente de inspeção, sem combate, interações ou salvamento. Os comandos aceitam `--game` e `--screenshot arquivo.png`.
+Na prévia de mapas e masmorras, WASD/setas movem o personagem respeitando colisões; Tab alterna a visão completa e Esc encerra. No catálogo e no ateliê de arte, Tab troca de página; `--preview-page` começa em zero. Esse modo é somente de inspeção, sem combate, interações ou salvamento. Os comandos aceitam `--game` e `--screenshot arquivo.png`.
 
 ## Executar localmente
 
@@ -170,7 +188,7 @@ A cópia exclui contas e pastas `private`. `SOLUNA_GAME` define o jogo padrão; 
 | `tests/Soluna.Tests` | Verificações de regras, geração e integração por UDP. |
 | `tools/` | Geradores e importadores de conteúdo. |
 
-Consulte [Engine e jogo de exemplo](docs/SOLUNA_ENGINE.md) para os formatos e regras. `tools/configure_soluna_art.py` recria os metadados de importação das páginas de arte incluídas; `tools/build_soluna_art.py` reproduz as folhas de fallback. `tools/build_soluna_world.py` recria mapas e dados do exemplo; `--maps-only` restringe a recriação aos dois mapas públicos. Essas ferramentas sobrescrevem seus arquivos de saída e só devem ser usadas ao regenerar esse conteúdo deliberadamente; o caminho normal de autoria é o editor dentro do jogo. Não são necessárias para jogar.
+Consulte [Engine e jogo de exemplo](docs/SOLUNA_ENGINE.md) para os formatos e regras. `tools/configure_soluna_art.py` recria os metadados de importação e conserva as colisões do catálogo; `tools/build_soluna_art.py` reproduz as folhas de fallback. `tools/build_soluna_world.py` recria somente os seis mapas públicos, sem sobrescrever aventura, evolução, itens, NPCs ou contas; `--maps-only` permanece aceito por compatibilidade. Os scripts de mapas sobrescrevem os mapas de autoria: use-os apenas para regenerar deliberadamente esse conteúdo. O caminho normal é F1 para mapas e F2 → Aventura → Ruínas para pisos, estilos, peças e suas posições nas salas. Não é preciso executar geradores para jogar.
 
 ## Testes e validação
 
@@ -183,7 +201,7 @@ dotnet run --project tests/Soluna.Tests
 
 O projeto de testes é um executor de console: retorna código diferente de zero se alguma verificação falhar. Cria um mundo temporário e contas descartáveis, abre seu próprio servidor em uma porta UDP local disponível e não depende do servidor de jogo em execução.
 
-A última validação terminou com **32 testes aprovados, nenhuma falha e build sem avisos ou erros**. A cobertura inclui evolução por hábitos, combinações de ações, sorte, receitas, profissões, permissões, persistência, combate, cooldown, descida, renascimento, recortes de arte, transferência dos objetos de cenário, acesso aos serviços e portais, consistência do conteúdo da aventura, edição ao vivo pelo editor (com recusa a não administradores e a conteúdo inválido) e validação de cenário e pontos ao salvar mapas. A geração foi verificada em **80 combinações de semente e profundidade**. O cliente também foi executado e inspecionado com Xvfb e Mesa.
+A última validação terminou com **35 testes aprovados, nenhuma falha e build sem avisos ou erros**. A cobertura inclui evolução por hábitos, sorte, receitas, profissões, permissões, persistência, combate, cooldown, descida, renascimento, recortes de arte e edição ao vivo. Os seis mapas têm serviços e portais alcançáveis; as quatro portas foram atravessadas nos dois sentidos por movimento real via UDP. A geração foi verificada em **80 combinações de semente e profundidade**, incluindo circulação após decorar salas, reprodutibilidade e temas independentes dos encontros. O cliente também foi executado e inspecionado com Xvfb e Mesa.
 
 Para verificar o cliente sem monitor no Linux, com o servidor já iniciado e Xvfb instalado:
 

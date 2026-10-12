@@ -56,6 +56,20 @@ A sorte soma afinidade natural da conta, ciclo dos espíritos, ambiente, memóri
 
 As criaturas de um andar não reaparecem durante a expedição. A descida abre depois que os inimigos daquele andar são derrotados. Uma expedição nova muda a semente quando não há jogadores nas ruínas. A semente e os mapas são persistidos; criaturas reaparecem ao reiniciar o processo do servidor. Jogadores simultâneos compartilham a expedição ativa: não há instâncias privadas por grupo nesta versão.
 
+Cada andar usa uma grade de 60 × 48 tiles. `DungeonSettings` define `floorTile`, `floorVariants`, `wallTile`, `wallFaceTile` e os marcadores `exitTile`, `descentTile`, `chestTile`, `extractionTile`. Índices pertencem ao tileset configurado; -1 omite paredes ou marcadores opcionais. Nenhuma variação de piso ou marcador é escolhida pelo código do jogo-modelo.
+
+`roomStyles` contém até 16 estilos, com `name`, `minDepth`, `floorTile`, `borderTile` e até 16 `decorations`. Cada decoração inclui um `prop` no formato `MapProp`, uma âncora (`NorthWest`, `NorthEast`, `SouthWest`, `SouthEast`, `Center`) e `offsetX`/`offsetY` em tiles. O tamanho da peça determina seu alinhamento ao canto; coordenadas X/Y do próprio prop são substituídas durante a geração. Pisos -1 conservam o piso base. Os estilos elegíveis são sorteados com um fluxo aleatório separado: trocar decoração não desloca corredores nem encontros.
+
+Peças que não cabem na sala, encobrem pontos importantes ou sobrepõem outro móvel são omitidas. Uma colisão só é aceita se todo o chão restante continuar conectado ao nascimento. Tapetes podem passar sob atores, mas seus marcadores de interação continuam visíveis. Estilos, pisos e peças do catálogo podem ser editados em F2 → Aventura → Ruínas. Recortes e dimensões próprios também podem ser definidos no JSON. Alterações afetam andares ainda não gerados; os já persistidos mantêm sua composição até uma nova expedição.
+
+O exemplo tem claustro, cripta, arquivo e uma sala de raízes disponível a partir do terceiro andar. Esses nomes, pisos e peças vivem em `games/soluna/data/adventure.json`.
+
+## Interiores e portas
+
+Os mapas 3–6 são estalagem, ferraria, botica e moinho. Usam os mesmos formatos e regras dos exteriores: `Warps` nas soleiras fazem a transferência no servidor, e a chegada fica em um tile livre, fora de outro gatilho. As lojas compartilham as ofertas do jogo; bancadas e altar usam os sistemas existentes. Camas, engrenagens e móveis são cenário nesta versão.
+
+`tools/soluna_interiors.py` descreve sua composição, divisões, móveis e colisões. O editor F1 pode alterá-los como qualquer outro mapa. Nenhuma regra da engine depende de um desses IDs para reconhecer um interior.
+
 ## Arte
 
 O jogo usa páginas de arte em `assets/atlases`, importadas por arquivos `*.png.layout.json`. Cada layout define `Columns`, `Rows`, `CellWidth`, `CellHeight` e `Patches`. Um patch referencia uma página por `File` (relativo a `assets/`), sua grade por `Columns`/`Rows` e os índices `Source`/`Target`. `Rects` permite especificar recortes `[x, y, largura, altura]` revisados; `Fit` e `Inset` preservam proporções e alinham os pés dentro dos quadros. `Average` reduz ruído dos pisos ao converter a imagem para resolução nativa. A imagem PNG que acompanha o layout serve de fallback; expandir o atlas conserva as células anteriores em suas posições.
@@ -66,13 +80,13 @@ A importação ocorre em memória e entrega aos renderizadores e editores as dim
 
 `MapProp.Source` é um recorte opcional `[x, y, largura, altura]` na imagem indicada por `Sprite`. `Width` e `Height` continuam em tiles. `Underfoot` coloca uma peça abaixo dos atores; os demais objetos seguem a ordenação pela base. Mapas antigos sem esses campos continuam usando a imagem inteira e a ordenação anterior. `Attributes` define as colisões separadamente.
 
-O catálogo de cenário do exemplo reúne 36 peças maiores; `tools/soluna_maps.py` usa seus recortes para montar os dois mapas externos, revisão 10. A autoria dessas peças grandes ainda ocorre nos dados, enquanto F1 permite pintar os tiles pequenos do atlas ampliado. O novo zoom inicial de 1,25 permite ver mais da composição; os controles de zoom permanecem disponíveis.
+O catálogo de cenário reúne 68 peças maiores. `tools/soluna_maps.py` e `tools/soluna_interiors.py` montam seis mapas fixos, revisão 12. F1 permite pintar tiles e colocar peças grandes no modo Cenário, com sua colisão `Solid`. Tapetes e decks com `Underfoot` são desenhados depois do chão e antes das camadas de detalhes, preservando marcadores de interação. O zoom inicial é 1,25; os controles de zoom permanecem disponíveis.
 
 `characters/echoes/forms.json` associa cada silhueta à sua folha de animação. O compositor aplica as cores e marcas recebidas do servidor, usando os desenhos em código como fallback quando não há uma folha de autoria.
 
-`tools/configure_soluna_art.py` escreve os metadados da arte atual, sem alterar os PNGs. `tools/build_soluna_art.py` reproduz apenas os sprites de fallback com Pillow. `tools/build_soluna_world.py` recria o conteúdo do exemplo; `--maps-only` restringe a recriação aos dois mapas públicos. Ambos os modos sobrescrevem os respectivos arquivos de autoria. Veja [Arte de Soluna](../games/soluna/assets/SOLUNA_ART.md) para o inventário e os créditos.
+`tools/configure_soluna_art.py` escreve os metadados da arte atual, sem alterar os PNGs, e conserva as colisões existentes do catálogo. `tools/build_soluna_art.py` reproduz apenas os sprites de fallback com Pillow. `tools/build_soluna_world.py` sobrescreve somente os seis mapas públicos; aventura, evolução, itens, NPCs e dados dos jogadores são preservados. A opção antiga `--maps-only` produz o mesmo resultado. Veja [Arte de Soluna](../games/soluna/assets/SOLUNA_ART.md) para o inventário e os créditos.
 
-O cliente aceita `--art-preview` para conferir tiles, objetos, formas e todas as direções dos NPCs sem conectar ao servidor. `--scenery-preview` mostra o catálogo de peças grandes; `--map-preview <id>` mostra um mapa local, com `--overview` para enquadrá-lo inteiro. Na prévia de mapas, WASD/setas respeitam as colisões e Tab alterna o enquadramento. Não há interações, combate nem gravação nesse modo. Todas as prévias aceitam `--game` e `--screenshot`. A paleta do editor F1 reorganiza as colunas do atlas para permitir selecionar também os tiles que excedem a largura do painel.
+O cliente aceita `--art-preview` para conferir tiles, formas e direções dos NPCs. `--scenery-preview` mostra o catálogo de peças grandes; Tab troca a página, e `--preview-page <n>` seleciona a página inicial (zero em diante). `--map-preview <id>` mostra um mapa local; `--dungeon-preview <profundidade> --seed <semente>` gera uma prévia das ruínas sem persistir o andar. `--overview` enquadra o mapa inteiro. WASD/setas respeitam colisões e Tab alterna o enquadramento. Não há interações, combate nem gravação nesse modo. Todas as prévias aceitam `--game` e `--screenshot`. A paleta F1 reorganiza as colunas do atlas para permitir selecionar todos os tiles.
 
 ## Validação
 
