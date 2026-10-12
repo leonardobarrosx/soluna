@@ -15,7 +15,7 @@ A engine continua dividida em `Soluna.Shared` (formatos, protocolo e regras), `S
 | `assets/props/*` | Objetos de cenário com ordenação de profundidade |
 | `assets/props/catalog.json` | Recortes e dimensões das peças de arquitetura, vegetação e mobiliário do exemplo |
 
-Os editores F1 e F2 existentes continuam disponíveis para mapas, itens e NPCs. As novas receitas, combinações de hábitos e pontos de atividade são configurados em JSON nesta versão. O conteúdo do exemplo pode servir de modelo para outro jogo:
+Tudo isso é editado dentro do jogo. F2 tem as abas Itens, NPCs, Aventura (materiais, ofícios, suprimentos, efeitos, receitas, loja, objetivos, memórias, regras gerais e textos) e Evolução (formas e os hábitos que as moldam). F1 coloca tiles, atributos, NPCs, peças de cenário com a colisão da base e os pontos de interação (santuário, mercador, bancada, quadro, ofícios, masmorra). O servidor valida cada gravação, escreve os arquivos abaixo e envia a mudança a todos. O conteúdo do exemplo pode servir de modelo para outro jogo:
 
 ```bash
 dotnet run --project src/Soluna.Server -- --new-game meu_mundo --from soluna
@@ -93,4 +93,4 @@ LIBGL_ALWAYS_SOFTWARE=1 ALSOFT_DRIVERS=null xvfb-run -a \
 
 ## Limites desta versão
 
-Esta é uma base jogável de desenvolvimento. A validação cobre multiplayer local e os sistemas acima. Operação de MMO público, criptografia do protocolo de autenticação, testes de carga, moderação, instâncias por grupo, áudio e um editor visual específico para as novas regras continuam sendo trabalho de produto. O protocolo LiteNetLib atual transmite login sem criptografia e é destinado ao desenvolvimento em rede confiável. Cliente e servidor precisam usar a mesma versão do protocolo.
+Esta é uma base jogável de desenvolvimento. A validação cobre multiplayer local e os sistemas acima. Operação de MMO público, criptografia do protocolo de autenticação, testes de carga, moderação, instâncias por grupo, áudio, um editor de arte de personagem e de animações e um lançador no cliente continuam sendo trabalho de produto. O protocolo LiteNetLib atual transmite login sem criptografia e é destinado ao desenvolvimento em rede confiável. Cliente e servidor precisam usar a mesma versão do protocolo.

@@ -12,12 +12,12 @@ Soluna é uma **engine 2D de RPG online**, em C# / .NET 10, com cliente MonoGame
 | Rede e simulação | Servidor UDP com LiteNetLib, atualização a 20 Hz, validação de movimento, combate, distância de interação, intervalos entre ações e custos das receitas. |
 | Contas e persistência | Cadastro, login, até três personagens por conta, uma sessão por conta e salvamento em arquivos JSON. Senhas armazenadas como hashes PBKDF2 com salt. |
 | Combate e personagens | Vida, essência, nível, experiência, inventário, equipamentos, NPCs amigáveis e hostis, perseguição, ataques, morte e reaparecimento. Suporte a PvP conforme a configuração do mapa. |
-| Autoria dentro do jogo | Editor de mapas em F1; editor de itens e NPCs em F2; importação de PNG ao arrastar para a janela; importação de mapas Tiled pelo servidor. Edição restrita a administradores. |
+| Autoria dentro do jogo | Editor de mapas em F1 (tiles, atributos, NPCs, cenário com colisão da base, pontos de interação e propriedades do mapa); editor do jogo em F2 (itens, NPCs, toda a aventura e as regras de evolução); importação de PNG ao arrastar para a janela (tileset, sprite ou cenário); importação de mapas Tiled pelo servidor. Edição restrita a administradores; o servidor valida, grava e envia as mudanças a todos na hora. |
 | Conteúdo e sincronização | Mapas, itens, NPCs e assets por jogo; distribuição de arquivos aos clientes e cache de mapas por revisão. |
 | Sistemas de aventura | Hábitos, formas emergentes, memórias da conta, sorte, atividades, receitas e geração de ruínas. Receitas e regras de evolução são configuradas por jogo em JSON. |
 | Vários jogos | Cada projeto vive em `games/<nome>`, com seleção por `--game` e criação a partir de outro jogo com `--new-game`. |
 
-Os editores existentes cobrem mapas, itens e NPCs. Receitas, evolução e pontos de atividade ainda exigem edição dos arquivos de dados. Parte da lógica específica de Soluna, como objetivos, ofertas do mercador e influências ambientais da sorte, permanece no código; a separação entre engine e jogo ainda está em evolução.
+Tudo o que é específico de Soluna fica nos dados do jogo, não no código: materiais, ofícios, suprimentos e seus efeitos, receitas, ofertas do mercador, objetivos e recompensas, memórias, espólios, baús, ciclo de sorte, masmorra, mensagens e as regras de evolução. Tudo isso é editado em F2, na aba Aventura (com subabas) e na aba Evolução. As regras de evolução só chegam a administradores; jogadores não veem os requisitos. A engine guarda apenas as mecânicas: contadores, hábitos registrados por ações, cálculo de sorte, combate e geração de andares.
 
 ## O jogo-modelo Soluna
 
@@ -88,7 +88,7 @@ Na prévia de mapas, WASD/setas movem o personagem respeitando colisões; Tab al
 
 ## Executar localmente
 
-Requer **.NET 10 SDK**. O cliente é uma aplicação desktop. No Linux, precisa de SDL2, OpenGL/Mesa, OpenAL e uma fonte disponível, como DejaVu; também é possível fornecer uma fonte `.ttf` em `games/soluna/assets/fonts/`. A validação atual foi feita em Linux com .NET SDK 10.0.401.
+Requer **.NET 10 SDK**. O cliente é uma aplicação desktop. No Linux, precisa de SDL2, OpenGL/Mesa, OpenAL e uma fonte disponível, como DejaVu; também é possível fornecer uma fonte `.ttf` em `games/soluna/assets/fonts/`. Testado no Windows e no Linux.
 
 Na raiz do repositório:
 
@@ -119,17 +119,6 @@ dotnet run --project src/Soluna.Client --no-build -- --host 127.0.0.1 --port 717
 ```
 
 Execute esses dois comandos em terminais separados. Cliente e servidor precisam usar a mesma versão do protocolo. Encerre o servidor com **Ctrl+C** para salvar os personagens.
-
-### Ambiente de nuvem preparado
-
-No ambiente configurado para este projeto, ative as ferramentas em cada terminal antes dos comandos acima:
-
-```bash
-cd /workspace/soluna
-source /workspace/.soluna-setup/activate.sh
-```
-
-A ativação aponta `SOLUNA_ROOT` para `/workspace/.soluna-setup/game`: o mundo usado em execução fica fora do checkout. Alterações em `games/soluna` no repositório precisam ser incorporadas à cópia de execução para aparecer nesse ambiente, preservando contas, conteúdo privado e edições existentes. Os processos de cliente e servidor precisam ser iniciados novamente após restaurar o ambiente.
 
 ## Controles e primeiros passos
 
@@ -173,15 +162,15 @@ A cópia exclui contas e pastas `private`. `SOLUNA_GAME` define o jogo padrão; 
 | `src/Soluna.Shared` | Protocolo, formatos, fórmulas, evolução, sorte e geração procedural. |
 | `src/Soluna.Server` | Contas, persistência, simulação, combate, ofícios e distribuição de conteúdo. |
 | `src/Soluna.Client` | Renderização, entrada, interface, sincronização e editores. |
-| `games/<nome>/data/adventure.json` | Atividades, materiais, receitas, ruínas e opções de aparência emergente e renascimento. |
-| `games/<nome>/data/evolution.json` | Regras de hábitos, especializações, origens, cores, silhuetas e bônus. |
+| `games/<nome>/data/adventure.json` | Materiais, ofícios, suprimentos, efeitos, receitas, loja, objetivos, memórias, espólios, sorte, masmorra, textos e regras gerais. Editado em F2 → Aventura. |
+| `games/<nome>/data/evolution.json` | Regras de hábitos, especializações, origens, cores, silhuetas e bônus. Editado em F2 → Evolução. |
 | `games/<nome>/data/items.json`, `npcs.json`, `maps/` | Equipamentos, criaturas, mapas, portais, colisões e pontos de interação. |
 | `games/<nome>/assets/` | Sprites, tilesets, objetos de cenário, fontes e créditos. |
 | `games/<nome>/data/accounts/` | Contas e personagens persistidos; ignorados pelo Git. |
 | `tests/Soluna.Tests` | Verificações de regras, geração e integração por UDP. |
 | `tools/` | Geradores e importadores de conteúdo. |
 
-Consulte [Engine e jogo de exemplo](docs/SOLUNA_ENGINE.md) para os formatos e regras. `tools/configure_soluna_art.py` recria os metadados de importação das páginas de arte incluídas; `tools/build_soluna_art.py` reproduz as folhas de fallback. `tools/build_soluna_world.py` recria mapas e dados do exemplo; `--maps-only` restringe a recriação aos dois mapas públicos. Essas ferramentas sobrescrevem seus arquivos de saída e só devem ser usadas ao regenerar esse conteúdo deliberadamente. Não são necessárias para jogar.
+Consulte [Engine e jogo de exemplo](docs/SOLUNA_ENGINE.md) para os formatos e regras. `tools/configure_soluna_art.py` recria os metadados de importação das páginas de arte incluídas; `tools/build_soluna_art.py` reproduz as folhas de fallback. `tools/build_soluna_world.py` recria mapas e dados do exemplo; `--maps-only` restringe a recriação aos dois mapas públicos. Essas ferramentas sobrescrevem seus arquivos de saída e só devem ser usadas ao regenerar esse conteúdo deliberadamente; o caminho normal de autoria é o editor dentro do jogo. Não são necessárias para jogar.
 
 ## Testes e validação
 
@@ -194,7 +183,7 @@ dotnet run --project tests/Soluna.Tests
 
 O projeto de testes é um executor de console: retorna código diferente de zero se alguma verificação falhar. Cria um mundo temporário e contas descartáveis, abre seu próprio servidor em uma porta UDP local disponível e não depende do servidor de jogo em execução.
 
-A última validação desta implementação terminou com **28 testes aprovados, nenhuma falha e build sem avisos ou erros**. A cobertura inclui evolução por hábitos, combinações de ações, sorte, receitas, profissões, permissões, persistência, combate, cooldown, descida, renascimento, recortes de arte, transferência dos objetos de cenário e acesso aos serviços e portais. A geração foi verificada em **80 combinações de semente e profundidade**. O cliente também foi executado e inspecionado com Xvfb e Mesa.
+A última validação terminou com **32 testes aprovados, nenhuma falha e build sem avisos ou erros**. A cobertura inclui evolução por hábitos, combinações de ações, sorte, receitas, profissões, permissões, persistência, combate, cooldown, descida, renascimento, recortes de arte, transferência dos objetos de cenário, acesso aos serviços e portais, consistência do conteúdo da aventura, edição ao vivo pelo editor (com recusa a não administradores e a conteúdo inválido) e validação de cenário e pontos ao salvar mapas. A geração foi verificada em **80 combinações de semente e profundidade**. O cliente também foi executado e inspecionado com Xvfb e Mesa.
 
 Para verificar o cliente sem monitor no Linux, com o servidor já iniciado e Xvfb instalado:
 
@@ -210,7 +199,7 @@ O modo `--walk --name` usa uma conta local de teste, entra no mundo e movimenta 
 
 - **Operação de MMO:** foram validados clientes locais; capacidade de carga, hospedagem pública, moderação e operação contínua ainda precisam ser desenvolvidas e verificadas.
 - **Segurança de transporte:** as senhas são armazenadas com hash, mas o protocolo atual envia o login sem criptografia. A execução atual é destinada a uma rede de desenvolvimento confiável.
-- **Autoria completa:** faltam editores visuais para as novas regras de evolução, receitas e atividades, além de maior separação das regras específicas do exemplo no código.
+- **Autoria:** faltam um editor de arte de personagem e de animações, e um lançador no cliente para criar, escolher e hospedar um jogo sem a linha de comando.
 - **Expedições:** ainda são compartilhadas entre jogadores; não há instâncias por grupo, e o estado das criaturas não sobrevive ao reinício do servidor.
 - **Conteúdo e acabamento:** áudio, variedade de cenários e habilidades, balanceamento prolongado e refinamento da apresentação continuam em desenvolvimento.
 

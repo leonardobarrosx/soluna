@@ -32,7 +32,7 @@ Os tiles continuam em **32 × 32**. Personagens usam folhas de três colunas e q
 
 O atlas nativo tem 16 colunas e 11 linhas. Os índices anteriores permanecem: pisos originais em 0–15 e objetos originais em 96–111. Os pisos novos ficam em 128–143, natureza em 144–159 e mobiliário em 160–175. São **32 pisos e 48 objetos pequenos**; as células legadas intermediárias continuam disponíveis para compatibilidade. O catálogo maior reutiliza os mesmos recortes em escala apropriada, acrescentando as quatro construções. Não é preciso duplicar os PNGs para colocar cada objeto no mapa.
 
-Os grandes objetos de `Props` usam `Source: [x, y, largura, altura]` para recortar a página e `Width`/`Height` para ocupar tiles no mundo. `Underfoot: true` desenha cais e ponte abaixo dos personagens. As pegadas sólidas ficam em `Attributes`; transparência de um desenho não define colisão. Os prédios novos são fachadas externas, sem interiores acessíveis nesta versão.
+Os grandes objetos de `Props` usam `Source: [x, y, largura, altura]` para recortar a página e `Width`/`Height` para ocupar tiles no mundo. `Underfoot: true` desenha cais e ponte abaixo dos personagens. `Solid: [x, y, largura, altura]` diz quais tiles da base bloqueiam a passagem; o modo Cenário do editor de mapas (F1) marca esses tiles como bloqueados ao colocar a peça e os libera ao removê-la. Transparência de um desenho não define colisão. Os prédios novos são fachadas externas, sem interiores acessíveis nesta versão.
 
 ## Composição dos mapas
 
@@ -45,7 +45,9 @@ Os objetos são posicionados deliberadamente. Recriar esses mapas produz o mesmo
 - `tools/configure_soluna_art.py`: lê dimensões e transparência das páginas e escreve os metadados de recorte revisados. Não altera pixels dos PNGs. As coordenadas precisam ser revisadas se uma página for substituída.
 - `tools/build_soluna_art.py`: recria apenas o atlas e as folhas de fallback antigos; os metadados continuam fornecendo a arte ativa.
 - `tools/build_soluna_world.py --maps-only`: recria os dois mapas públicos do exemplo com os detalhes de cenário. Sobrescreve esses mapas; não execute sobre alterações de autoria que queira preservar.
-- `tools/soluna_maps.py`: planos de composição dos mapas e pegadas dos objetos; usa `props/catalog.json`. Os tiles pequenos continuam disponíveis no editor F1; as peças grandes e suas colisões são configuradas nos dados do mapa.
+- `tools/soluna_maps.py`: planos de composição dos mapas e pegadas dos objetos; usa `props/catalog.json`.
+
+O caminho normal de autoria é o editor dentro do jogo: tiles, peças grandes (modo Cenário) e pontos de interação (modo Pontos) no F1; uma peça nova entra arrastando o PNG para a janela e escolhendo "Cenário".
 
 Para conferir todos os quadros pela mesma renderização usada no jogo, sem servidor:
 
