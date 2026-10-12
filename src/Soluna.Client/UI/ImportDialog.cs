@@ -12,8 +12,8 @@ namespace Soluna.Client.UI;
 /// </summary>
 internal sealed class ImportDialog(Gui gui, Textures textures)
 {
-    private static readonly AssetKind[] Kinds = [AssetKind.Tileset, AssetKind.Sprite];
-    private static readonly string[] KindNames = ["Tileset (mapas)", "Sprite de personagem (NPCs)"];
+    private static readonly AssetKind[] Kinds = [AssetKind.Tileset, AssetKind.Sprite, AssetKind.Prop];
+    private static readonly string[] KindNames = ["Tileset (mapas)", "Sprite de personagem (NPCs)", "Cenário (construção, árvore...)"];
 
     private byte[]? _data;
     private Texture2D? _preview;
@@ -43,8 +43,8 @@ internal sealed class ImportDialog(Gui gui, Textures textures)
                 _data = data;
                 _size = size;
                 _preview = textures.FromBytes(data);
-                // Small 3:4 images are character sheets; anything else on the 32 grid is a tileset.
-                _kind = size.w * 4 == size.h * 3 && size.w <= 288 ? 1 : 0;
+                // Small 3:4 images are character sheets, others on the 32 grid tilesets, anything else scenery.
+                _kind = size.w * 4 == size.h * 3 && size.w <= 288 ? 1 : size.w % Constants.TileSize == 0 && size.h % Constants.TileSize == 0 ? 0 : 2;
                 _name = Clean(Path.GetFileNameWithoutExtension(path));
             }
         }
@@ -104,10 +104,13 @@ internal sealed class ImportDialog(Gui gui, Textures textures)
         var kind = Kinds[_kind];
         var problem = AssetFiles.Check(kind, _size) ?? (_name.Length == 0 ? "Dê um nome ao arquivo." : null);
         gui.Label(new Vector2(x, y), problem ?? $"Destino: {AssetFiles.Destination(kind, _name, _shareable)}", problem != null ? Theme.Danger : Theme.TextDim, small: true);
-        if (problem == null && kind == AssetKind.Sprite)
-            gui.Label(new Vector2(x, y + 22), "Aparece na lista de sprites do editor de NPCs.", Theme.TextDim, small: true);
-        else if (problem == null)
-            gui.Label(new Vector2(x, y + 22), "Aparece na paleta do editor de mapas (F1).", Theme.TextDim, small: true);
+        if (problem == null)
+            gui.Label(new Vector2(x, y + 22), kind switch
+            {
+                AssetKind.Sprite => "Aparece na lista de sprites do editor de NPCs.",
+                AssetKind.Prop => "Aparece no modo Cenário do editor de mapas (F1).",
+                _ => "Aparece na paleta do editor de mapas (F1).",
+            }, Theme.TextDim, small: true);
 
         if (gui.Button(new Rectangle(panel.Right - 290, panel.Bottom - 52, 120, 32), "Cancelar")) Close();
         if (gui.Button(new Rectangle(panel.Right - 160, panel.Bottom - 52, 140, 32), "Importar", primary: true, enabled: problem == null))

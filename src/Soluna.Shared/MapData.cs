@@ -89,6 +89,8 @@ public sealed class MapProp
     public int Y { get; set; }
     public int Width { get; set; } = 2;
     public int Height { get; set; } = 3;
+    /// <summary>Optional [x, y, width, height] of tiles, relative to the prop, that block walking. The editor sets and clears them.</summary>
+    public int[] Solid { get; set; } = [];
 }
 
 public sealed class MapData

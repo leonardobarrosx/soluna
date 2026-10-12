@@ -49,7 +49,7 @@ internal sealed class MapRenderer(Textures textures, Sprites sprites)
     public void DrawCharacter(SpriteBatch batch, Character character) =>
         DrawCharacter(batch, character, sprites.SheetFor(character.Look, character.Equipment));
 
-    public void DrawProp(SpriteBatch batch, MapProp prop, Rectangle? destination = null)
+    public void DrawProp(SpriteBatch batch, MapProp prop, Rectangle? destination = null, Color? tint = null)
     {
         if (textures.Sheet(prop.Sprite) is not { } texture || prop.Width <= 0 || prop.Height <= 0) return;
         Rectangle? source = null;
@@ -59,7 +59,7 @@ internal sealed class MapRenderer(Textures textures, Sprites sprites)
                 || (long)x + w > texture.Width || (long)y + h > texture.Height) return;
             source = new Rectangle(x, y, w, h);
         }
-        batch.Draw(texture, destination ?? new Rectangle(prop.X * S, prop.Y * S, prop.Width * S, prop.Height * S), source, Color.White);
+        batch.Draw(texture, destination ?? new Rectangle(prop.X * S, prop.Y * S, prop.Width * S, prop.Height * S), source, tint ?? Color.White);
     }
 
     public void DrawCharacter(SpriteBatch batch, Character character, Texture2D sheet)

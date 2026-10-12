@@ -10,6 +10,9 @@ public enum AssetKind : byte
 
     /// <summary>A character sheet: 3 frames by 4 directions. Goes to characters/sprites.</summary>
     Sprite = 2,
+
+    /// <summary>A piece of scenery (building, tree, fence...): any size. Goes to props/imported.</summary>
+    Prop = 3,
 }
 
 /// <summary>
@@ -72,14 +75,20 @@ public static class AssetFiles
             $"Um tileset precisa ter largura e altura múltiplas de {Constants.TileSize} (este tem {size.w}x{size.h}).",
         AssetKind.Sprite when size.w * 4 != size.h * 3 =>
             $"Um sprite de personagem precisa de 3 quadros por 4 direções, proporção 3:4 (este tem {size.w}x{size.h}).",
+        AssetKind.Prop when size.w is < 8 or > 4096 || size.h is < 8 or > 4096 =>
+            $"Uma peça de cenário precisa ter entre 8 e 4096 pixels de lado (esta tem {size.w}x{size.h}).",
         _ => null,
     };
 
     /// <summary>Where an imported file goes, relative to the game's assets.</summary>
     public static string Destination(AssetKind kind, string name, bool shareable)
     {
-        var folder = kind == AssetKind.Tileset ? "tilesets" : "characters";
-        var sub = kind == AssetKind.Tileset ? "imported" : "sprites";
+        var (folder, sub) = kind switch
+        {
+            AssetKind.Tileset => ("tilesets", "imported"),
+            AssetKind.Prop => ("props", "imported"),
+            _ => ("characters", "sprites"),
+        };
         return shareable ? $"{folder}/{sub}/{name}.png" : $"{folder}/private/{sub}/{name}.png";
     }
 }

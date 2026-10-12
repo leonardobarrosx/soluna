@@ -698,9 +698,13 @@ internal sealed partial class GameServer
         // Links, warps and NPCs must point at things that exist.
         var links = new[] { map.Links.Up, map.Links.Down, map.Links.Left, map.Links.Right };
         if (links.Any(l => l != 0 && (l == map.Id || !_maps.Exists(l))) || map.Warps.Any(w => !_maps.Exists(w.Map))
-            || map.Npcs.Any(n => _npcs.Get(n.NpcId) == null || !map.InBounds(n.X, n.Y)))
+            || map.Npcs.Any(n => _npcs.Get(n.NpcId) == null || !map.InBounds(n.X, n.Y))
+            || map.Landmarks.Any(l => !Enum.IsDefined(l.Kind) || !map.InBounds(l.X, l.Y))
+            // Scenery must draw a file every player has, and sit at least partly on the map.
+            || map.Props.Any(p => !Assets.ContainsKey(p.Sprite) || p.Width is < 1 or > 32 || p.Height is < 1 or > 32
+                || p.X + p.Width <= 0 || p.Y + p.Height <= 0 || p.X >= map.Width || p.Y >= map.Height))
         {
-            Tell(player, "O mapa aponta para um mapa ou NPC que não existe; não foi salvo.");
+            Tell(player, "O mapa aponta para um mapa, NPC, ponto ou arquivo de cenário que não existe; não foi salvo.");
             return;
         }
 

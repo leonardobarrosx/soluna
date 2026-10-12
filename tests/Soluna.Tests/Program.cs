@@ -239,6 +239,20 @@ try
         edited.Shop.Offers[0].Price=price;Save(admin,ContentKind.Adventure,edited.ToJson());
         Until(()=>AdventureContent.Parse(player.Adventure!).Shop.Offers[0].Price==price);
     });
+    Check("map saves keep scenery to files players have",()=>{
+        Warp(admin,1,22,22);
+        var path=Path.Combine(DataPaths.Data,"maps","1.json");
+        MapData Disk()=>MapData.FromBytes(File.ReadAllBytes(path));
+        var map=Disk();var rev=map.Revision;var props=map.Props.Count;
+        map.Props.Add(new MapProp{Sprite="../../segredo.png",X=2,Y=2});
+        admin.Send(PacketType.MapSave,w=>w.PutBlob(map.ToBytes()));Pump(500);
+        Require(Disk().Revision==rev&&admin.Messages.Any(m=>m.Contains("cenário")),"A prop outside the game's files was saved");
+        map.Props[^1]=new MapProp{Sprite="props/pine.png",X=2,Y=2,Width=2,Height=3,Solid=[1,2,1,1]};
+        map.Landmarks.Add(new Landmark{Kind=LandmarkKind.Forage,Name="Teste",X=3,Y=3});
+        admin.Send(PacketType.MapSave,w=>w.PutBlob(map.ToBytes()));
+        Until(()=>Disk().Revision==rev+1);
+        Require(Disk().Props.Count==props+1&&Disk().Props[^1].Solid.Length==4&&Disk().Landmarks.Any(l=>l.Name=="Teste"));
+    });
     Check("death resets form and possessions but preserves account memories",()=>
     {
         // Establish a nearby encounter after the long profession/combat checks.

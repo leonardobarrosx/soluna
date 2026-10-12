@@ -30,6 +30,7 @@ internal sealed class Input
     public bool RightDown => _mouse.RightButton == ButtonState.Pressed;
 
     public bool LeftPressed => LeftDown && _prevMouse.LeftButton == ButtonState.Released;
+    public bool RightPressed => RightDown && _prevMouse.RightButton == ButtonState.Released;
 
     /// <summary>Wheel notches since last frame, positive when scrolled up.</summary>
     public int Wheel => (_mouse.ScrollWheelValue - _prevMouse.ScrollWheelValue) / 120;
