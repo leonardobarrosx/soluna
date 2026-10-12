@@ -12,9 +12,6 @@ internal sealed class MapStore
 {
     public const int StartMapId = 1;
 
-    /// <summary>Pipoya's sample map, imported as the start map when the pack is in assets/tilesets/private.</summary>
-    private static readonly string PipoyaSample = Path.Combine(
-        DataPaths.Assets, "tilesets", "private", "Pipoya RPG Tileset 32x32", "Pipoya RPG Tileset 32x32", "SampleMap", "samplemap.tmx");
 
     private readonly string _folder;
     private readonly string _privateFolder;
@@ -62,15 +59,6 @@ internal sealed class MapStore
         var privatePath = Path.Combine(_privateFolder, $"{id}.json");
         var publicPath = Path.Combine(_folder, $"{id}.json");
 
-        if (!File.Exists(privatePath) && id == StartMapId && File.Exists(PipoyaSample))
-        {
-            var imported = TmxImporter.Import(PipoyaSample, id, "Vila de Soluna", Path.Combine(DataPaths.Assets, "tilesets"));
-            // The road just east of the river's main bridge.
-            imported.SpawnX = 24;
-            imported.SpawnY = 30;
-            Store(imported, privatePath);
-            Log.Info($"Imported Pipoya's sample map as map {id} into {privatePath}.");
-        }
         if (id != StartMapId && !Exists(id)) throw new KeyNotFoundException($"Map {id} does not exist.");
 
         MapData map;
@@ -88,7 +76,6 @@ internal sealed class MapStore
             Log.Info($"Created starter map at {path}.");
         }
         Store(map, path);
-        if (id == StartMapId) EnsureForest(map);
         return map;
     }
 
@@ -131,22 +118,6 @@ internal sealed class MapStore
         Store(map, Path.Combine(isPrivate ? _privateFolder : _folder, $"{id}.json"));
         Log.Info($"Created map {id} '{name}' ({width}x{height}).");
         return map;
-    }
-
-    /// <summary>
-    /// With Pipoya's village as the start map, adds a forest north of it (map 2) the first time,
-    /// linked to the village's north road, so there is a second map to walk into.
-    /// </summary>
-    private void EnsureForest(MapData village)
-    {
-        if (village.Name != "Vila de Soluna" || Exists(2)) return;
-
-        var forest = ForestMap.Build(village, 2);
-        forest.Links.Down = village.Id;
-        Store(forest, Path.Combine(_privateFolder, "2.json"));
-        village.Links.Up = forest.Id;
-        Save(village);
-        Log.Info("Created the forest north of the village as map 2.");
     }
 
     /// <summary>Imports a Tiled map and saves it, as private if any of its tilesets is.</summary>

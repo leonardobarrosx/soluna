@@ -341,44 +341,6 @@ internal sealed partial class GameServer
         ResetState(map);
     }
 
-    /// <summary>
-    /// First run with Pipoya's maps: villagers in the village, monsters in the forest. Only when the map
-    /// has no NPC spawns yet and the NPCs exist, so nothing an admin placed is touched.
-    /// </summary>
-    private void SeedDemoNpcs(MapData map)
-    {
-        if (map.Npcs.Count > 0) return;
-        (int id, int count)[] plan = map.Name switch
-        {
-            "Vila de Soluna" => [(1, 3), (2, 3), (3, 2), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1)],
-            "Bosque ao Norte" => [(10, 4), (11, 3), (12, 2), (13, 2), (14, 2), (15, 1), (16, 1)],
-            _ => [],
-        };
-        var rng = new Random(map.Id * 31);
-        var (sx, sy) = map.Spawn;
-        foreach (var (id, count) in plan)
-        {
-            if (_npcs.Get(id) is not { } def) continue;
-            for (var i = 0; i < count; i++)
-            {
-                for (var attempt = 0; attempt < 200; attempt++)
-                {
-                    // Friendly folk stay near the spawn; monsters keep away from where players arrive.
-                    var (x, y) = def.Hostile
-                        ? (rng.Next(2, map.Width - 2), rng.Next(2, map.Height * 2 / 3))
-                        : (sx + rng.Next(-12, 13), sy + rng.Next(-10, 11));
-                    if (!map.IsWalkable(x, y) || map.GetAttribute(x, y) != TileAttribute.None) continue;
-                    if (map.Npcs.Any(n => n.X == x && n.Y == y) || Math.Abs(x - sx) + Math.Abs(y - sy) < 3) continue;
-                    map.Npcs.Add(new NpcSpawn { NpcId = id, X = x, Y = y });
-                    break;
-                }
-            }
-        }
-        if (map.Npcs.Count == 0) return;
-        _maps.Save(map);
-        Log.Info($"Placed {map.Npcs.Count} NPCs on map {map.Id} '{map.Name}'.");
-    }
-
     // ---- Packets ----
 
     private static int Distance(NpcInstance npc, Player p) => Math.Abs(npc.X - p.X) + Math.Abs(npc.Y - p.Y);

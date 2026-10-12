@@ -119,8 +119,7 @@ internal sealed partial class GameServer
 
     public void Start(int port)
     {
-        SeedDemoNpcs(_maps.Get(MapStore.StartMapId));
-        if (_maps.Exists(2)) SeedDemoNpcs(_maps.Get(2));
+        _maps.Get(MapStore.StartMapId);
         if (!_net.Start(port)) throw new InvalidOperationException($"Could not bind UDP port {port}.");
     }
 
