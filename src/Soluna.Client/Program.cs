@@ -30,6 +30,7 @@ for (var i = 0; i < args.Length - 1; i++)
         case "--game": DataPaths.UseGame(args[++i]); break;
         case "--editor-mode": editorMode = args[++i]; break;
         case "--import": import = args[++i]; break;
+        case "--game-editor-tab": gameEditorTab = args[++i]; break;
         case "--map-preview": mapPreview = int.Parse(args[++i]); break;
     }
 }

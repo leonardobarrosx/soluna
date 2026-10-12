@@ -8,6 +8,12 @@ public enum ContentKind : byte
 {
     Items = 1,
     Npcs = 2,
+
+    /// <summary>adventure.json: materials, supplies, recipes, the shop, objectives, loot, luck, texts.</summary>
+    Adventure = 3,
+
+    /// <summary>evolution.json: which habits shape which forms. Admins only; players never see the requirements.</summary>
+    Evolution = 4,
 }
 
 public static class ContentJson

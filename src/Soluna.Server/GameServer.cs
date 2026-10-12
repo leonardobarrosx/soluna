@@ -362,6 +362,7 @@ internal sealed partial class GameServer
         SendVitals(player);
         SendJourney(player);
         SendAdventureCatalog(player);
+        if (player.IsAdmin) SendEvolution(player);
         BroadcastChat(player.MapId, "", $"{player.Name} chegou.");
         Log.Info($"{player.Name} (#{player.Id}, '{account.Username}') entered map {map.Id} at {x},{y}.");
     }

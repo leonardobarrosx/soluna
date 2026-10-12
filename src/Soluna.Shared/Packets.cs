@@ -102,6 +102,9 @@ public enum PacketType : byte
     FormChanged = 126,
     AdventureCatalog = 127,
     Pulse = 128,
+
+    /// <summary>Admins: the evolution rules as JSON, for the editor.</summary>
+    EvolutionCatalog = 129,
 }
 
 /// <summary>What a character slot shows on the select screen.</summary>

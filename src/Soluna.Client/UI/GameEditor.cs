@@ -7,12 +7,13 @@ using Soluna.Shared;
 namespace Soluna.Client.UI;
 
 /// <summary>
-/// The game editor (F2, admins): items and NPCs edited in place, saved to the server, which writes the
-/// game's files and pushes the change to everyone online. Works on copies until Save, so Discard is safe.
+/// The game editor (F2, admins): items, NPCs, the adventure's content and the evolution rules, edited in
+/// place and saved to the server, which writes the game's files and pushes the change to everyone online.
+/// Works on copies until Save, so Discard is safe.
 /// </summary>
 internal sealed class GameEditor(Gui gui, Textures textures, Sprites sprites, ItemCatalog itemCatalog, NpcCatalog npcCatalog)
 {
-    private enum Tab { Items, Npcs }
+    private enum Tab { Items, Npcs, Adventure, Evolution }
 
     private static readonly EquipSlot[] Slots = Enum.GetValues<EquipSlot>();
     private static readonly string[] SlotNames = ["Cabeça", "Torso", "Pernas", "Pés", "Pescoço", "Braços", "Arma", "Costas", "Rosto"];
@@ -31,6 +32,9 @@ internal sealed class GameEditor(Gui gui, Textures textures, Sprites sprites, It
 
     public bool Open { get; private set; }
 
+    /// <summary>The adventure and evolution tabs; the game hands it what the server sends.</summary>
+    public AdventureEditor Adventure { get; } = new(gui);
+
     /// <summary>Set by the game: sends one kind of content to the server.</summary>
     public Action<ContentKind, string>? Save { get; set; }
 
@@ -44,11 +48,13 @@ internal sealed class GameEditor(Gui gui, Textures textures, Sprites sprites, It
         _sprites = null;
     }
 
-    /// <summary>Opens straight on a tab ("items" or "npcs"), for tests and shortcuts.</summary>
+    /// <summary>Opens straight on a tab ("items", "npcs", "evolution" or "adventure:recipes" and the like), for tests and shortcuts.</summary>
     public void OpenOn(string tab)
     {
         if (!Open) Toggle();
-        _tab = tab == "npcs" ? Tab.Npcs : Tab.Items;
+        var parts = tab.Split(':', 2);
+        _tab = parts[0] switch { "npcs" => Tab.Npcs, "adventure" => Tab.Adventure, "evolution" => Tab.Evolution, _ => Tab.Items };
+        if (parts.Length == 2 && Enum.TryParse<AdventureEditor.Section>(parts[1], true, out var section)) Adventure.Current = section;
     }
 
     /// <summary>The server sent a new catalog: take it, unless there are edits here not saved yet.</summary>
@@ -70,35 +76,58 @@ internal sealed class GameEditor(Gui gui, Textures textures, Sprites sprites, It
         gui.Title(new Vector2(panel.X + 20, panel.Y + 14), "Editor do jogo");
         gui.Label(new Vector2(panel.Right - 150, panel.Y + 20), "F2 ou Esc fecha", Theme.TextDim, small: true);
 
-        if (gui.Button(new Rectangle(panel.X + 220, panel.Y + 14, 110, 30), "Itens" + (_itemsDirty ? " *" : ""), _tab == Tab.Items)) _tab = Tab.Items;
-        if (gui.Button(new Rectangle(panel.X + 338, panel.Y + 14, 110, 30), "NPCs" + (_npcsDirty ? " *" : ""), _tab == Tab.Npcs)) _tab = Tab.Npcs;
+        (Tab tab, string name, bool dirty)[] tabs =
+        [
+            (Tab.Items, "Itens", _itemsDirty), (Tab.Npcs, "NPCs", _npcsDirty),
+            (Tab.Adventure, "Aventura", Adventure.AdventureDirty), (Tab.Evolution, "Evolução", Adventure.EvolutionDirty),
+        ];
+        for (var i = 0; i < tabs.Length; i++)
+            if (gui.Button(new Rectangle(panel.X + 220 + i * 128, panel.Y + 14, 120, 30), tabs[i].name + (tabs[i].dirty ? " *" : ""), _tab == tabs[i].tab)) _tab = tabs[i].tab;
 
         var body = new Rectangle(panel.X + 16, panel.Y + 60, panel.Width - 32, panel.Height - 112);
-        if (_tab == Tab.Items) DrawItems(body, previewLook);
-        else DrawNpcs(body);
+        switch (_tab)
+        {
+            case Tab.Items: DrawItems(body, previewLook); break;
+            case Tab.Npcs: DrawNpcs(body); break;
+            case Tab.Adventure: Adventure.DrawAdventure(body, _items, _npcs); break;
+            case Tab.Evolution: Adventure.DrawEvolution(body); break;
+        }
 
-        var dirty = _tab == Tab.Items ? _itemsDirty : _npcsDirty;
+        var dirty = tabs.First(t => t.tab == _tab).dirty;
         var footer = panel.Bottom - 44;
         gui.Label(new Vector2(panel.X + 20, footer + 8), _status, Theme.TextDim, small: true);
         if (gui.Button(new Rectangle(panel.Right - 330, footer, 140, 32), "Descartar", enabled: dirty))
         {
-            if (_tab == Tab.Items) _itemsDirty = false; else _npcsDirty = false;
-            CatalogChanged(_tab == Tab.Items ? ContentKind.Items : ContentKind.Npcs);
+            switch (_tab)
+            {
+                case Tab.Items: _itemsDirty = false; CatalogChanged(ContentKind.Items); break;
+                case Tab.Npcs: _npcsDirty = false; CatalogChanged(ContentKind.Npcs); break;
+                case Tab.Adventure: Adventure.DiscardAdventure(); break;
+                case Tab.Evolution: Adventure.DiscardEvolution(); break;
+            }
             _status = "Alterações descartadas.";
         }
         if (gui.Button(new Rectangle(panel.Right - 180, footer, 160, 32), "Salvar no servidor", primary: true, enabled: dirty))
         {
-            if (_tab == Tab.Items)
+            // Problems are caught here, in words, before the server has to refuse the file.
+            var problems = _tab switch
             {
-                Save?.Invoke(ContentKind.Items, ItemCatalog.ToJson(_items));
-                _itemsDirty = false;
-            }
+                Tab.Adventure => Adventure.AdventureProblems(id => _items.Any(i => i.Id == id)),
+                Tab.Evolution => Adventure.EvolutionProblems(),
+                _ => [],
+            };
+            if (problems.Count > 0) _status = "Não salvo: " + problems[0];
             else
             {
-                Save?.Invoke(ContentKind.Npcs, NpcCatalog.ToJson(_npcs));
-                _npcsDirty = false;
+                switch (_tab)
+                {
+                    case Tab.Items: Save?.Invoke(ContentKind.Items, ItemCatalog.ToJson(_items)); _itemsDirty = false; break;
+                    case Tab.Npcs: Save?.Invoke(ContentKind.Npcs, NpcCatalog.ToJson(_npcs)); _npcsDirty = false; break;
+                    case Tab.Adventure: Save?.Invoke(ContentKind.Adventure, Adventure.AdventureJson); break;
+                    case Tab.Evolution: Save?.Invoke(ContentKind.Evolution, Adventure.EvolutionJson); break;
+                }
+                _status = "Enviado ao servidor...";
             }
-            _status = "Enviado ao servidor...";
         }
     }
 
@@ -161,6 +190,8 @@ internal sealed class GameEditor(Gui gui, Textures textures, Sprites sprites, It
         var color = gui.TextField($"item-color-{item.Id}", Gui.Field(x, y, width - 44), "Cor (#rrggbb, vazio mantém a original)", item.Colors.FirstOrDefault() ?? "", 7);
         item.Colors = color.Length > 0 ? [color] : [];
         if (TryColor(color) is { } swatch) gui.Fill(new Rectangle(x + width - 36, y + 4, 34, 26), swatch);
+        y += 42;
+        item.Luck = gui.NumberField($"item-luck-{item.Id}", Gui.Field(x, y, width), "Sorte", item.Luck, -50, 50);
         y += 42;
         item.Starter = gui.Toggle(Gui.Field(x, y, width), "Personagens novos começam com ele", item.Starter);
 
@@ -246,6 +277,8 @@ internal sealed class GameEditor(Gui gui, Textures textures, Sprites sprites, It
         y += 42;
         npc.MoveMs = gui.NumberField($"npc-move-{npc.Id}", Gui.Field(x, y, half), "Passo a cada (ms)", npc.MoveMs, 100, 10000, 50);
         npc.AttackMs = gui.NumberField($"npc-hit-{npc.Id}", Gui.Field(x + half + 8, y, half), "Ataca a cada (ms)", npc.AttackMs, 100, 10000, 50);
+        y += 42;
+        npc.Boss = gui.Toggle(Gui.Field(x, y, width), "Chefe (recompensas e memória de chefe)", npc.Boss);
         y += 50;
         if (npc.Look != null)
             gui.Label(new Vector2(x, y), "Usa um boneco montado. Escolha um sprite para trocar.", Theme.TextDim, small: true);

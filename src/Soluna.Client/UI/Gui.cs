@@ -96,7 +96,16 @@ internal sealed class Gui(Texture2D pixel, Fonts fonts, Input input)
         if (focused) value = Apply(value, max);
         Box(r, label, focused);
         var caret = focused && _time % 1 < 0.5f ? "|" : "";
-        Ui.Text(_batch, fonts.Body, value + caret, new Vector2(r.X + 8, r.Y + 14), Theme.Text);
+        // Long text: the end while typing, so the caret stays in view; the start, cut short, otherwise.
+        var room = r.Width - 16;
+        var shown = value;
+        if (fonts.Body.MeasureString(shown + "|").X > room)
+        {
+            if (focused) while (shown.Length > 1 && fonts.Body.MeasureString("…" + shown + "|").X > room) shown = shown[1..];
+            else while (shown.Length > 1 && fonts.Body.MeasureString(shown + "…").X > room) shown = shown[..^1];
+            shown = focused ? "…" + shown : shown + "…";
+        }
+        Ui.Text(_batch, fonts.Body, shown + caret, new Vector2(r.X + 8, r.Y + 14), Theme.Text);
         return value;
     }
 

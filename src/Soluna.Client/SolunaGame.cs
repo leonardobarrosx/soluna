@@ -332,7 +332,14 @@ internal sealed class SolunaGame : Game
                 _journey.State = System.Text.Json.JsonSerializer.Deserialize<Journey>(r.GetString()) ?? new();
                 break;
             case PacketType.AdventureCatalog:
-                _journey.Content = AdventureContent.Parse(r.GetString());
+            {
+                var json = r.GetString();
+                _journey.Content = AdventureContent.Parse(json);
+                _gameEditor.Adventure.SetAdventure(json);
+                break;
+            }
+            case PacketType.EvolutionCatalog:
+                _gameEditor.Adventure.SetEvolution(r.GetString());
                 break;
             case PacketType.FormChanged:
             {

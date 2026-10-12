@@ -116,7 +116,28 @@ public sealed class EvolutionRule
 public sealed class EvolutionRules
 {
     public List<EvolutionRule> Rules { get; set; } = [];
-    public static EvolutionRules Load() => Load(Path.Combine(DataPaths.Data, "evolution.json"));
+    public static string SourcePath => Path.Combine(DataPaths.Data, "evolution.json");
+    public static EvolutionRules Load() => Load(SourcePath);
+    public static EvolutionRules Parse(string json) => JsonSerializer.Deserialize<EvolutionRules>(json, AdventureContent.JsonOptions) ?? new();
+    public string ToJson() => JsonSerializer.Serialize(this, AdventureContent.JsonOptions);
+
+    /// <summary>Problems that would break evolution if saved; empty when the rules are sound.</summary>
+    public List<string> Problems()
+    {
+        var problems = new List<string>();
+        foreach (var g in Rules.GroupBy(r => r.Id).Where(g => g.Key.Length == 0 || g.Count() > 1))
+            problems.Add(g.Key.Length == 0 ? "Há uma forma sem identificador." : $"Há mais de uma forma '{g.Key}'.");
+        static bool Color(string c) => c.Length == 7 && c[0] == '#' && c[1..].All(Uri.IsHexDigit);
+        foreach (var r in Rules)
+        {
+            if (r.Kind is not ("calling" or "bloodline")) problems.Add($"'{r.Name}' precisa ser especialização ou origem.");
+            if (r.Requires.Count == 0 || r.Requires.Any(p => p.Key.Length == 0 || p.Value < 1)) problems.Add($"'{r.Name}' precisa exigir pelo menos um hábito.");
+            if (r.Weights.Any(p => p.Value < 0)) problems.Add($"'{r.Name}' tem um peso negativo.");
+            if (!Color(r.Tint) || !Color(r.Accent)) problems.Add($"'{r.Name}' tem uma cor inválida (use #rrggbb).");
+            if (r.SkillCost < 0 || r.SkillCooldownMs < 100) problems.Add($"'{r.Name}' tem custo ou recarga de habilidade inválidos.");
+        }
+        return problems;
+    }
     public static EvolutionRules Load(string path) => File.Exists(path)
         ? JsonSerializer.Deserialize<EvolutionRules>(File.ReadAllText(path), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new()
         : new();

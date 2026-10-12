@@ -48,6 +48,36 @@ internal sealed partial class GameServer
                     Tell(player, $"{npcs.Count} NPCs salvos.");
                     break;
                 }
+                case ContentKind.Adventure:
+                {
+                    var content = AdventureContent.Parse(json);
+                    if (content.Problems(id => _items.Get(id) != null) is { Count: > 0 } problems)
+                        throw new InvalidDataException(string.Join(" ", problems.Take(3)));
+                    var text = content.ToJson();
+                    Write(AdventureContent.SourcePath, text);
+                    _adventure = content;
+                    BroadcastAll(PacketType.AdventureCatalog, text);
+                    foreach (var p in Players) SendJourney(p);
+                    Tell(player, "Conteúdo da aventura salvo.");
+                    break;
+                }
+                case ContentKind.Evolution:
+                {
+                    var rules = EvolutionRules.Parse(json);
+                    if (rules.Problems() is { Count: > 0 } problems)
+                        throw new InvalidDataException(string.Join(" ", problems.Take(3)));
+                    Write(EvolutionRules.SourcePath, rules.ToJson());
+                    _evolution = rules;
+                    // Everyone's form follows the new rules at once.
+                    foreach (var p in Players)
+                    {
+                        if (_evolution.Apply(p.Journey)) BroadcastForm(p);
+                        SendJourney(p);
+                        if (p.IsAdmin) SendEvolution(p);
+                    }
+                    Tell(player, $"{rules.Rules.Count} formas salvas.");
+                    break;
+                }
                 default:
                     Tell(player, "Tipo de conteúdo desconhecido.");
                     return;
@@ -59,6 +89,13 @@ internal sealed partial class GameServer
             Tell(player, $"Não foi possível salvar: {ex.Message}");
             Log.Warn($"{player.Name} sent bad {kind}: {ex.Message}");
         }
+    }
+
+    private void SendEvolution(Player player)
+    {
+        var w = PacketIO.Begin(PacketType.EvolutionCatalog);
+        w.Put(_evolution.ToJson());
+        player.Peer.Send(w, DeliveryMethod.ReliableOrdered);
     }
 
     private void HandleMapList(Player player)

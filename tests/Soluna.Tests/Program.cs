@@ -218,6 +218,27 @@ try
         Warp(admin,floor,stairs.X,stairs.Y);admin.Action(AdventureAction.Interact);Until(()=>admin.Map==floor+1);
         Require(maps.Get(admin.Map).Depth==2);
     });
+    Check("admins edit adventure and evolution live, players cannot",()=>{
+        void Save(Probe who,ContentKind kind,string json)=>who.Send(PacketType.ContentSave,w=>{w.Put((byte)kind);w.PutBlob(System.Text.Encoding.UTF8.GetBytes(json));});
+        Until(()=>admin.Adventure!=null&&player.Adventure!=null&&admin.Evolution!=null);
+        Require(player.Evolution==null,"Evolution rules reached a player");
+        var edited=AdventureContent.Parse(admin.Adventure!);var price=edited.Shop.Offers[0].Price;edited.Shop.Offers[0].Price=price+7;
+        Save(player,ContentKind.Adventure,edited.ToJson());Pump(400);
+        Require(AdventureContent.Parse(player.Adventure!).Shop.Offers[0].Price==price,"A player changed the shop");
+        Save(admin,ContentKind.Adventure,edited.ToJson());
+        Until(()=>AdventureContent.Parse(player.Adventure!).Shop.Offers[0].Price==price+7);
+        Require(AdventureContent.Load().Shop.Offers[0].Price==price+7,"The shop change was not written");
+        var broken=AdventureContent.Parse(admin.Adventure!);broken.Recipes[0].Costs["nada"]=1;
+        Save(admin,ContentKind.Adventure,broken.ToJson());Pump(400);
+        Require(AdventureContent.Load().Recipes[0].Costs.Count==edited.Recipes[0].Costs.Count,"Broken content was saved");
+        var rules=EvolutionRules.Parse(admin.Evolution!);rules.Rules[0].Tint="vermelho";
+        Save(admin,ContentKind.Evolution,rules.ToJson());Pump(400);
+        Require(EvolutionRules.Load().Rules[0].Tint!="vermelho","A bad colour was saved");
+        rules.Rules[0].Tint="#123456";Save(admin,ContentKind.Evolution,rules.ToJson());
+        Until(()=>EvolutionRules.Parse(admin.Evolution!).Rules[0].Tint=="#123456");
+        edited.Shop.Offers[0].Price=price;Save(admin,ContentKind.Adventure,edited.ToJson());
+        Until(()=>AdventureContent.Parse(player.Adventure!).Shop.Offers[0].Price==price);
+    });
     Check("death resets form and possessions but preserves account memories",()=>
     {
         // Establish a nearby encounter after the long profession/combat checks.
@@ -240,7 +261,7 @@ return failed==0?0:1;
 sealed class Probe : IDisposable
 {
     readonly EventBasedNetListener listener=new(); readonly NetManager net; NetPeer? peer;
-    public string Name{get;} public int Id;public int Map;public int FormCount;public Journey? Journey;public List<string> Messages=[];public Dictionary<int,(int x,int y)> Npcs=[];
+    public string Name{get;} public string? Adventure;public string? Evolution;public int Id;public int Map;public int FormCount;public Journey? Journey;public List<string> Messages=[];public Dictionary<int,(int x,int y)> Npcs=[];
     public Probe(string username,string name,string password,int port)
     {
         Name=name;net=new NetManager(listener){AutoRecycle=true};
@@ -258,6 +279,8 @@ sealed class Probe : IDisposable
                 case PacketType.NpcRemoved:Npcs.Remove(r.GetInt());break;
                 case PacketType.Journey:Journey=JsonSerializer.Deserialize<Journey>(r.GetString());break;
                 case PacketType.FormChanged:FormCount++;break;
+                case PacketType.AdventureCatalog:Adventure=r.GetString();break;
+                case PacketType.EvolutionCatalog:Evolution=r.GetString();break;
                 case PacketType.ChatMessage:r.GetString();Messages.Add(r.GetString());break;
                 case PacketType.Refused:Messages.Add(r.GetString());break;
             }
