@@ -1,21 +1,30 @@
 {
-  "EmergentAppearance": true,
-  "DeathResetsLife": true,
-  "Dungeon": {
-    "FirstMapId": 1001,
-    "Name": "Ruínas do Eclipse",
-    "Tileset": "soluna/atlas.png",
-    "FloorTile": 5,
-    "WallTile": 7,
-    "Enemies": [
+  "emergentAppearance": true,
+  "deathResetsLife": true,
+  "dungeon": {
+    "firstMapId": 1001,
+    "name": "Ruínas do Eclipse",
+    "tileset": "soluna/atlas.png",
+    "floorTile": 5,
+    "wallTile": 7,
+    "enemies": [
       10,
       11,
       12
     ],
-    "Boss": 99,
-    "BossEvery": 3
+    "boss": 99,
+    "bossEvery": 3,
+    "exitName": "Fio de retorno",
+    "descentName": "Escada selada",
+    "chestName": "Relicário esquecido",
+    "extractionName": "Veio de ecos"
   },
-  "Resources": [
+  "startingGold": 20,
+  "startingSupplies": {
+    "Tonic": 4,
+    "Ether": 3
+  },
+  "resources": [
     {
       "id": "wood",
       "name": "Madeira antiga",
@@ -47,49 +56,76 @@
       "value": 9
     }
   ],
-  "Activities": [
+  "supplies": [
     {
-      "id": "fishing",
-      "habit": "fish",
-      "resource": "fish",
-      "message": "A linha retorna do escuro.",
-      "cooldownSeconds": 4,
-      "supply": 2
+      "id": "Tonic",
+      "name": "Tônico de vida",
+      "description": "Restaura 40 de vida.",
+      "hp": 40,
+      "hotkey": 1
     },
     {
-      "id": "forage",
-      "habit": "gather",
-      "resource": "herb",
-      "message": "Você recolhe o que resiste.",
-      "cooldownSeconds": 4,
-      "supply": 3
+      "id": "Ether",
+      "name": "Éter azul",
+      "description": "Restaura 25 de essência.",
+      "mp": 25,
+      "hotkey": 2
     },
     {
-      "id": "mining",
-      "habit": "mine",
-      "resource": "ore",
-      "message": "A pedra cede sob suas mãos.",
-      "cooldownSeconds": 4,
-      "supply": 4
+      "id": "Moonfruit",
+      "name": "Fruto pálido",
+      "description": "Restaura 12 de essência.",
+      "mp": 12,
+      "habit": "moonfood"
     },
     {
-      "id": "woodcutting",
-      "habit": "wood",
-      "resource": "wood",
-      "message": "O bosque entrega um fragmento.",
-      "cooldownSeconds": 4,
-      "supply": -1
+      "id": "Wildroot",
+      "name": "Raiz amarga",
+      "description": "Restaura 18 de vida.",
+      "hp": 18,
+      "habit": "wildfood"
     },
     {
-      "id": "extraction",
-      "habit": "extract",
-      "resource": "echo",
-      "message": "Um eco se desprende do cristal.",
-      "cooldownSeconds": 5,
-      "supply": 2
+      "id": "Emberseed",
+      "name": "Semente ardente",
+      "description": "Restaura 10 de vida.",
+      "hp": 10,
+      "habit": "emberfood"
+    },
+    {
+      "id": "FortuneTea",
+      "name": "Chá dos espíritos",
+      "description": "Sorte favorecida por dois minutos.",
+      "effect": "tea"
+    },
+    {
+      "id": "AshSalt",
+      "name": "Sal de cinzas",
+      "description": "Dissipa uma maldição.",
+      "cleanse": "curse"
     }
   ],
-  "Recipes": [
+  "effects": [
+    {
+      "id": "blessing",
+      "name": "Bênção do santuário",
+      "luck": 6,
+      "seconds": 180
+    },
+    {
+      "id": "curse",
+      "name": "Maldição das ruínas",
+      "luck": -9,
+      "seconds": 120
+    },
+    {
+      "id": "tea",
+      "name": "Chá dos espíritos",
+      "luck": 7,
+      "seconds": 120
+    }
+  ],
+  "recipes": [
     {
       "id": "tonic",
       "name": "Tônico de vida",
@@ -100,7 +136,7 @@
       },
       "item": 0,
       "resource": "",
-      "supply": 0,
+      "supply": "Tonic",
       "amount": 2
     },
     {
@@ -113,7 +149,7 @@
       },
       "item": 0,
       "resource": "",
-      "supply": 1,
+      "supply": "Ether",
       "amount": 2
     },
     {
@@ -126,7 +162,7 @@
       },
       "item": 0,
       "resource": "ingot",
-      "supply": -1,
+      "supply": "",
       "amount": 1
     },
     {
@@ -139,7 +175,7 @@
       },
       "item": 101,
       "resource": "",
-      "supply": -1,
+      "supply": "",
       "amount": 1
     },
     {
@@ -152,7 +188,7 @@
       },
       "item": 102,
       "resource": "",
-      "supply": -1,
+      "supply": "",
       "amount": 1
     },
     {
@@ -165,7 +201,7 @@
       },
       "item": 103,
       "resource": "",
-      "supply": -1,
+      "supply": "",
       "amount": 1
     },
     {
@@ -179,7 +215,7 @@
       },
       "item": 104,
       "resource": "",
-      "supply": -1,
+      "supply": "",
       "amount": 1
     },
     {
@@ -192,7 +228,7 @@
       },
       "item": 0,
       "resource": "",
-      "supply": 5,
+      "supply": "FortuneTea",
       "amount": 1
     },
     {
@@ -205,8 +241,192 @@
       },
       "item": 0,
       "resource": "",
-      "supply": 6,
+      "supply": "AshSalt",
       "amount": 1
     }
-  ]
+  ],
+  "activities": [
+    {
+      "id": "fishing",
+      "habit": "fish",
+      "resource": "fish",
+      "message": "A linha retorna do escuro.",
+      "cooldownSeconds": 4,
+      "supply": "Moonfruit"
+    },
+    {
+      "id": "forage",
+      "habit": "gather",
+      "resource": "herb",
+      "message": "Você recolhe o que resiste.",
+      "cooldownSeconds": 4,
+      "supply": "Wildroot"
+    },
+    {
+      "id": "mining",
+      "habit": "mine",
+      "resource": "ore",
+      "message": "A pedra cede sob suas mãos.",
+      "cooldownSeconds": 4,
+      "supply": "Emberseed"
+    },
+    {
+      "id": "woodcutting",
+      "habit": "wood",
+      "resource": "wood",
+      "message": "O bosque entrega um fragmento.",
+      "cooldownSeconds": 4,
+      "supply": ""
+    },
+    {
+      "id": "extraction",
+      "habit": "extract",
+      "resource": "echo",
+      "message": "Um eco se desprende do cristal.",
+      "cooldownSeconds": 5,
+      "supply": "Moonfruit"
+    }
+  ],
+  "shop": {
+    "name": "Mercador de cinzas",
+    "greeting": "Algo por algo. Nada desaparece de verdade.",
+    "keepPerResource": 10,
+    "offers": [
+      {
+        "supply": "Tonic",
+        "name": "Tônico de vida",
+        "price": 8
+      },
+      {
+        "supply": "Ether",
+        "name": "Éter azul",
+        "price": 8
+      },
+      {
+        "item": 101,
+        "name": "Espada de ferro pálido",
+        "price": 60
+      }
+    ]
+  },
+  "objectivesTitle": "O SINO DA VIGÍLIA",
+  "objectives": [
+    {
+      "id": "first-hunt",
+      "text": "Ecos no bosque",
+      "counter": "kills",
+      "goal": 6,
+      "gold": 45,
+      "supplies": {
+        "Tonic": 3
+      },
+      "memory": "hunt",
+      "message": "Vigília concluída. 45 ouro e três tônicos."
+    },
+    {
+      "id": "eclipse",
+      "text": "O coração do eclipse",
+      "counter": "bosses",
+      "goal": 1,
+      "gold": 100,
+      "memory": "eclipse",
+      "message": "O sino volta a soar. A vila se lembrará desta vida."
+    }
+  ],
+  "objectivesDone": "A noite se lembra. As ruínas voltam a mudar.",
+  "memories": [
+    {
+      "id": "tide",
+      "name": "Paciência das águas",
+      "counter": "account.catches",
+      "goal": 10
+    },
+    {
+      "id": "hands",
+      "name": "Mãos que aprenderam a criar",
+      "counter": "harvests",
+      "goal": 12
+    },
+    {
+      "id": "hunter",
+      "name": "Instinto da caçada",
+      "counter": "account.kills",
+      "goal": 10
+    },
+    {
+      "id": "guardian",
+      "name": "A queda do guardião",
+      "counter": "account.bosses",
+      "goal": 1
+    },
+    {
+      "id": "hunt",
+      "name": "A primeira vigília"
+    },
+    {
+      "id": "eclipse",
+      "name": "Coração do eclipse"
+    }
+  ],
+  "loot": {
+    "supplyChance": 0.4,
+    "supply": "Tonic",
+    "rareSupply": "Moonfruit",
+    "resource": "echo",
+    "bossSupplies": {
+      "Emberseed": 3,
+      "Moonfruit": 2
+    },
+    "bossMessage": "O Guardião do Eclipse se desfez. A escada responde ao seu toque.",
+    "chestGold": 12,
+    "chestGoldPerDepth": 3,
+    "chestSupplies": [
+      "Tonic",
+      "Ether",
+      "Moonfruit",
+      "Wildroot",
+      "Emberseed"
+    ],
+    "chestResource": "echo",
+    "chestCurseChance": 0.18,
+    "chestCurse": "curse"
+  },
+  "luck": {
+    "innate": "Marca de nascimento",
+    "spirits": "Vozes dos espíritos",
+    "spiritPhases": [
+      -3,
+      2,
+      5,
+      -1
+    ],
+    "phaseSeconds": 180,
+    "nature": "Natureza",
+    "memories": "Memórias",
+    "relics": "Relíquias",
+    "shrineEffect": "blessing"
+  },
+  "texts": {
+    "merchantFar": "Aproxime-se do mercador de cinzas.",
+    "merchant": "O mercador espera. Abra o diário [J], aba Trocas. Excedentes: apenas acima de dez unidades.",
+    "sold": "Excedentes trocados por {0} ouro. Dez de cada material foram reservados.",
+    "shopFar": "Encontre o mercador na praça da vila.",
+    "workbench": "Bancada de ofícios. Abra [C] para combinar seus materiais.",
+    "benchFar": "Aproxime-se de uma bancada de ofícios.",
+    "nothingHere": "Nada responde aqui. Procure um sinal na paisagem.",
+    "shrine": "Uma presença antiga pousa sobre seus ombros.",
+    "shrineActive": "O santuário ainda vela por você.",
+    "chest": "O relicário guardava ouro, provisões e ecos antigos.",
+    "chestCursed": "O relicário cedeu. Algo o seguiu de volta.",
+    "chestEmpty": "Restam apenas ecos neste relicário.",
+    "descentSealed": "A escada está selada. Silencie as criaturas deste andar.",
+    "enterFloor": "As ruínas se fecham atrás de você. Profundidade {0}.",
+    "returnBlocked": "A passagem não se abre durante o combate.",
+    "gatherCooldown": "Deixe a natureza respirar mais um instante.",
+    "noDungeon": "Não há expedições neste mundo.",
+    "memory": "Uma memória permanece: {0}",
+    "journalTitle": "CADERNO DE VESTÍGIOS",
+    "rebirth": "A forma se desfez. As memórias ficaram. Uma nova vida começa.",
+    "woke": "Você acordou na vila."
+  }
 }

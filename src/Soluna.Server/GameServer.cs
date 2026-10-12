@@ -344,7 +344,7 @@ internal sealed partial class GameServer
             LastBudgetCheckMs = _clock.ElapsedMilliseconds,
             Level = Math.Clamp(save.Level, 1, Formulas.MaxLevel),
             Exp = Math.Max(0, save.Exp),
-            Journey = save.Journey ?? new Journey(),
+            Journey = save.Journey ?? _adventure.NewJourney(),
         };
         player.Journey.Legacy = account.Legacy;
         _evolution.Apply(player.Journey);

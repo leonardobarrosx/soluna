@@ -278,7 +278,9 @@ internal sealed partial class GameServer
         var home = _maps.Get(MapStore.StartMapId);
         Transfer(player, home.Id, home.Spawn.x, home.Spawn.y);
         SendVitals(player);
-        Tell(player, _adventure.DeathResetsLife ? "A forma se desfez. As memórias ficaram. Uma nova vida começa." : "Você acordou na vila.");
+        Tell(player, _adventure.DeathResetsLife
+            ? _adventure.Text("rebirth", "Uma nova vida começa. As memórias ficaram.")
+            : _adventure.Text("woke", "Você acordou no início."));
         SaveJourney(player);
     }
 

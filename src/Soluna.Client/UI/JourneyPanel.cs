@@ -5,7 +5,7 @@ using Soluna.Shared;
 
 namespace Soluna.Client.UI;
 
-internal sealed record AdventureRequest(AdventureAction Action, string? Recipe = null);
+internal sealed record AdventureRequest(AdventureAction Action, string? Arg = null);
 internal sealed class JourneyPanel
 {
     public bool Open { get; set; }
@@ -29,7 +29,7 @@ internal sealed class JourneyPanel
         _buttons.Clear();
         var b = Bounds(screen); var x = b.X + 20; var y = b.Y + 102;
         Ui.Panel(batch, pixel, b, new Color(17, 25, 32) * .98f);
-        Ui.Text(batch, fonts.Title, "CADERNO DE VESTÍGIOS", new Vector2(x, b.Y + 15), Theme.Sol);
+        Ui.Text(batch, fonts.Title, Content.Text("journalTitle", "DIÁRIO"), new Vector2(x, b.Y + 15), Theme.Sol);
         Ui.Text(batch, fonts.Small, "J / Esc · fechar", new Vector2(b.Right - 115, b.Y + 21), Theme.TextDim);
         string[] tabs = ["Esta vida", "Ofícios", "Trocas", "Memórias"];
         for (var i = 0; i < tabs.Length; i++)
@@ -50,15 +50,13 @@ internal sealed class JourneyPanel
                 foreach (var source in State.LuckSources)
                     Text($"{source.Name}  {source.Value:+0;-0;0}", Theme.TextDim);
                 y += 8;
-                var supplies = new[] { (Supply.Tonic, AdventureAction.Tonic), (Supply.Ether, AdventureAction.Ether),
-                    (Supply.Moonfruit, AdventureAction.Moonfruit), (Supply.Wildroot, AdventureAction.Wildroot),
-                    (Supply.Emberseed, AdventureAction.Emberseed), (Supply.FortuneTea, AdventureAction.FortuneTea), (Supply.AshSalt, AdventureAction.AshSalt) };
-                for (var i = 0; i < supplies.Length; i++)
+                var supplies = Content.Supplies;
+                for (var i = 0; i < supplies.Count; i++)
                 {
-                    var (s, a) = supplies[i];
-                    Button(new Rectangle(x + i % 2 * 252, y + i / 2 * 32, 242, 27), $"{JourneyRules.SupplyName(s)}  ×{State.Count(s)}", new(a), State.Count(s) > 0);
+                    var s = supplies[i];
+                    Button(new Rectangle(x + i % 2 * 252, y + i / 2 * 32, 242, 27), $"{s.Name}  ×{State.Count(s.Id)}", new(AdventureAction.Use, s.Id), State.Count(s.Id) > 0);
                 }
-                y += 142;
+                y += (supplies.Count + 1) / 2 * 32 + 14;
                 Text("Materiais", Theme.Sol);
                 for (var i = 0; i < Content.Resources.Count; i++)
                 {
@@ -79,15 +77,19 @@ internal sealed class JourneyPanel
                 }
                 break;
             case 2:
-                Text("Mercador de cinzas", Theme.Sol, true);
-                Text(nearMerchant ? "Algo por algo. Nada desaparece de verdade." : "Encontre o mercador na praça da vila.", Theme.TextDim);
+                var shop = Content.Shop;
+                Text(shop.Name, Theme.Sol, true);
+                Text(nearMerchant ? shop.Greeting : Content.Text("shopFar", "Encontre o mercador para negociar."), Theme.TextDim);
                 Text($"Sua bolsa: {State.Gold} ouro", Theme.Text);
                 y += 12;
-                Button(new Rectangle(x, y, b.Width - 40, 38), "Tônico de vida  ·  8 ouro", new(AdventureAction.BuyTonic), nearMerchant && State.Gold >= 8); y += 48;
-                Button(new Rectangle(x, y, b.Width - 40, 38), "Éter azul  ·  8 ouro", new(AdventureAction.BuyEther), nearMerchant && State.Gold >= 8); y += 48;
-                Button(new Rectangle(x, y, b.Width - 40, 38), "Espada de ferro pálido  ·  60 ouro", new(AdventureAction.BuyBlade), nearMerchant && State.Gold >= 60); y += 48;
+                for (var i = 0; i < shop.Offers.Count && y + 48 < b.Bottom - 60; i++)
+                {
+                    var offer = shop.Offers[i];
+                    Button(new Rectangle(x, y, b.Width - 40, 38), $"{offer.Name}  ·  {offer.Price} ouro", new(AdventureAction.Buy, i.ToString()), nearMerchant && State.Gold >= offer.Price);
+                    y += 48;
+                }
                 Button(new Rectangle(x, y, b.Width - 40, 38), "Vender excedentes de materiais", new(AdventureAction.SellMaterials), nearMerchant); y += 52;
-                Text("Mantém dez unidades de cada material na bolsa.", Theme.TextDim);
+                Text($"Mantém {shop.KeepPerResource} unidades de cada material na bolsa.", Theme.TextDim);
                 break;
             case 3:
                 Text("O que atravessou a noite", Theme.Luna, true);
@@ -95,7 +97,7 @@ internal sealed class JourneyPanel
                 Text("A morte desfaz nível, forma, posses e hábitos desta vida.", Theme.TextDim);
                 Text("Memórias da conta concedem uma pequena resistência.", Theme.TextDim);
                 y += 18;
-                foreach (var memory in State.Legacy.Memories.Order()) Text("✦  " + MemoryName(memory), Theme.Sol);
+                foreach (var memory in State.Legacy.Memories.Order()) Text("✦  " + Content.MemoryName(memory), Theme.Sol);
                 if (State.Legacy.Memories.Count == 0) Text("Ainda não há ecos de outra vida.", Theme.TextDim);
                 y += 20;
                 Text("A forma acompanha seus hábitos. Ela não limita suas ações.", Theme.Text);
@@ -115,9 +117,4 @@ internal sealed class JourneyPanel
             _buttons.Add((rect, request, enabled));
         }
     }
-    private static string MemoryName(string id) => id switch
-    {
-        "tide" => "Paciência das águas", "hands" => "Mãos que aprenderam a criar", "hunter" => "Instinto da caçada",
-        "guardian" => "A queda do guardião", "hunt" => "A primeira vigília", "eclipse" => "Coração do eclipse", _ => id,
-    };
 }

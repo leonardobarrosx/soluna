@@ -3,13 +3,17 @@ namespace Soluna.Shared;
 public sealed class DungeonSettings
 {
     public int FirstMapId { get; set; } = 1001;
-    public string Name { get; set; } = "Ruínas do Eclipse";
-    public string Tileset { get; set; } = "soluna/atlas.png";
+    public string Name { get; set; } = "Masmorra";
+    public string Tileset { get; set; } = "";
     public int FloorTile { get; set; } = 5;
     public int WallTile { get; set; } = 7;
-    public int[] Enemies { get; set; } = [10, 11, 12];
-    public int Boss { get; set; } = 99;
+    public int[] Enemies { get; set; } = [];
+    public int Boss { get; set; }
     public int BossEvery { get; set; } = 3;
+    public string ExitName { get; set; } = "Saída";
+    public string DescentName { get; set; } = "Escada";
+    public string ChestName { get; set; } = "Baú";
+    public string ExtractionName { get; set; } = "Veio";
 }
 
 /// <summary>Connected rooms, seeded encounters and escalating depth, authored through each game's dungeon settings.</summary>
@@ -45,15 +49,15 @@ public static class DungeonGenerator
         }
         var first = rooms[0]; var last = rooms[^1];
         (map.SpawnX, map.SpawnY) = (first.x + first.w / 2, first.y + first.h / 2);
-        Add(LandmarkKind.Exit, "Fio de retorno", map.SpawnX - 1, map.SpawnY, 102);
-        Add(LandmarkKind.Descent, "Escada selada", last.x + last.w / 2, last.y + last.h / 2, 103);
+        Add(LandmarkKind.Exit, settings.ExitName, map.SpawnX - 1, map.SpawnY, 102);
+        Add(LandmarkKind.Descent, settings.DescentName, last.x + last.w / 2, last.y + last.h / 2, 103);
         for (var i = 1; i < rooms.Count; i++)
         {
             var r = rooms[i];
-            var npc = i == rooms.Count - 1 && depth % Math.Max(1, settings.BossEvery) == 0 ? settings.Boss : settings.Enemies[rng.Next(settings.Enemies.Length)];
+            var npc = i == rooms.Count - 1 && settings.Boss > 0 && depth % Math.Max(1, settings.BossEvery) == 0 ? settings.Boss : settings.Enemies[rng.Next(settings.Enemies.Length)];
             map.Npcs.Add(new NpcSpawn { NpcId = npc, X = r.x + 2, Y = r.y + 2 });
-            if (i % 3 == 1) Add(LandmarkKind.Chest, "Relicário esquecido", r.x + r.w - 2, r.y + 1, 97);
-            if (i == 2) Add(LandmarkKind.Extraction, "Veio de ecos", r.x + r.w - 2, r.y + r.h - 2, 105);
+            if (i % 3 == 1) Add(LandmarkKind.Chest, settings.ChestName, r.x + r.w - 2, r.y + 1, 97);
+            if (i == 2) Add(LandmarkKind.Extraction, settings.ExtractionName, r.x + r.w - 2, r.y + r.h - 2, 105);
         }
         return map;
         void Carve(int x, int y)

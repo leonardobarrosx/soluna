@@ -821,8 +821,8 @@ internal sealed class SolunaGame : Game
         }
         if (_input.Pressed(Keys.E)) SendAdventure(new(AdventureAction.Interact));
         if (_input.Pressed(Keys.Q)) SendAdventure(new(AdventureAction.Skill));
-        if (_input.Pressed(Keys.D1)) SendAdventure(new(AdventureAction.Tonic));
-        if (_input.Pressed(Keys.D2)) SendAdventure(new(AdventureAction.Ether));
+        foreach (var supply in _journey.Content.Supplies)
+            if (supply.Hotkey is >= 1 and <= 9 && _input.Pressed(Keys.D0 + supply.Hotkey)) SendAdventure(new(AdventureAction.Use, supply.Id));
         if (_input.Pressed(Keys.R)) SendAdventure(new(AdventureAction.ReturnHome));
         if (_input.Pressed(Keys.F1) && _map != null)
         {
@@ -955,7 +955,7 @@ internal sealed class SolunaGame : Game
     private void SendAdventure(AdventureRequest request) => Send(PacketType.AdventureAction, w =>
     {
         w.Put((byte)request.Action);
-        if (request.Recipe != null) w.Put(request.Recipe);
+        if (request.Arg != null) w.Put(request.Arg);
     });
     private Texture2D PlayerSheet(Character c) => _journey.Content.EmergentAppearance
         ? _forms.Get(c.Form) : _sprites.SheetFor(c.Look, c.Equipment);
@@ -1250,24 +1250,29 @@ internal sealed class SolunaGame : Game
         var p = _textures.Pixel; var j = _journey.State;
         var objective = new Rectangle(Screen.X - 332, 14, 318, 74);
         Ui.Panel(_batch, p, objective);
-        Ui.Text(_batch, _fonts.Small, "O SINO DA VIGÍLIA", new Vector2(objective.X + 14, objective.Y + 10), Theme.Sol);
-        Ui.Text(_batch, _fonts.Small, JourneyRules.Objective(j), new Vector2(objective.X + 14, objective.Y + 31), Theme.Text);
+        Ui.Text(_batch, _fonts.Small, _journey.Content.ObjectivesTitle, new Vector2(objective.X + 14, objective.Y + 10), Theme.Sol);
+        Ui.Text(_batch, _fonts.Small, _journey.Content.ObjectiveLine(j), new Vector2(objective.X + 14, objective.Y + 31), Theme.Text);
         Ui.Text(_batch, _fonts.Small, $"Vida {j.Legacy.Lives}   ·   {j.Gold} ouro   ·   Sorte {j.Luck:+0;-0;0}", new Vector2(objective.X + 14, objective.Y + 51), Theme.TextDim);
         if (_journey.Open || _inventory.Open || _editor.Active) return;
         var near = _map.Landmarks.Where(l => Math.Abs(l.X - _local.TileX) + Math.Abs(l.Y - _local.TileY) <= 3)
             .OrderBy(l => Math.Abs(l.X - _local.TileX) + Math.Abs(l.Y - _local.TileY)).FirstOrDefault();
         if (near != null)
             Ui.Tag(_batch, p, _fonts.Body, "[E] " + near.Name, new Vector2(Screen.X / 2f, Screen.Y - 102), Theme.Sol);
-        var bx = Screen.X / 2 - 195; var by = Screen.Y - 75;
-        string[] keys = ["Esp.", "1", "2", "Q", "E", "R"];
-        string[] labels = ["Golpe", $"Vida {j.Count(Supply.Tonic)}", $"Éter {j.Count(Supply.Ether)}", "Pulso", "Agir", "Voltar"];
-        for (var i = 0; i < keys.Length; i++)
+        // The bar: attack, then every supply the game puts on a number key, then the fixed actions.
+        var slots = new List<(string key, string label, bool accent)> { ("Esp.", "Golpe", false) };
+        foreach (var s in _journey.Content.Supplies.Where(s => s.Hotkey is >= 1 and <= 9).OrderBy(s => s.Hotkey))
+            slots.Add((s.Hotkey.ToString(), $"{ShortName(s.Name)} {j.Count(s.Id)}", s.Mp > 0 && s.Hp == 0));
+        slots.AddRange([("Q", "Pulso", false), ("E", "Agir", false), ("R", "Voltar", false)]);
+        var bx = Screen.X / 2 - slots.Count * 33; var by = Screen.Y - 75;
+        for (var i = 0; i < slots.Count; i++)
         {
+            var (key, label, accent) = slots[i];
             var box = new Rectangle(bx + i * 66, by, 59, 53);
             Ui.Panel(_batch, p, box);
-            _batch.Draw(p, new Rectangle(box.X + 2, box.Y + 2, box.Width - 4, 2), i == 2 ? Theme.Luna : Theme.Sol * .55f);
-            Ui.Text(_batch, _fonts.Title, keys[i], new Vector2(box.X + (i == 0 ? 7 : 22), box.Y + 5), i == 2 ? Theme.Luna : Theme.Text);
-            Ui.Text(_batch, _fonts.Small, labels[i], new Vector2(box.X + 7, box.Y + 32), Theme.TextDim);
+            _batch.Draw(p, new Rectangle(box.X + 2, box.Y + 2, box.Width - 4, 2), accent ? Theme.Luna : Theme.Sol * .55f);
+            var keySize = _fonts.Title.MeasureString(key);
+            Ui.Text(_batch, _fonts.Title, key, new Vector2(box.Center.X - keySize.X / 2, box.Y + 5), accent ? Theme.Luna : Theme.Text);
+            Ui.Text(_batch, _fonts.Small, label, new Vector2(box.X + 7, box.Y + 32), Theme.TextDim);
         }
         // A small schematic keeps exits readable without requiring a map command.
         var scale = 2; var mx = Screen.X - _map.Width * scale - 18; var my = 100;
@@ -1276,6 +1281,13 @@ internal sealed class SolunaGame : Game
             if (_map.IsWalkable(x, y)) _batch.Draw(p, new Rectangle(mx + x * scale, my + y * scale, scale, scale), new Color(68, 86, 87));
         foreach (var l in _map.Landmarks) _batch.Draw(p, new Rectangle(mx + l.X * scale, my + l.Y * scale, 3, 3), Theme.Sol);
         _batch.Draw(p, new Rectangle(mx + _local.TileX * scale - 1, my + _local.TileY * scale - 1, 4, 4), Theme.Luna);
+    }
+
+    /// <summary>First word of a supply's name, to fit an action-bar slot.</summary>
+    private static string ShortName(string name)
+    {
+        var word = name.Split(' ', 2)[0];
+        return word.Length > 6 ? word[..6] : word;
     }
 
     private void DrawStatusBar(MapData map)

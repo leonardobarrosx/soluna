@@ -32,10 +32,12 @@ Check("fishing makes a form without combat or a menu", () => { var j = new Journ
 Check("mixed fishing and combat create a hybrid", () => { var j = new Journey(); j.Record("fish",5); j.Record("melee",8); rules.Apply(j); Require(j.Calling == "marshblade"); });
 Check("changing habits can change specialization", () => { var j = new Journey(); j.Record("fish",8); rules.Apply(j); j.Record("melee",100); j.Record("hunt",20); rules.Apply(j); Require(j.Calling == "reaper"); });
 Check("food alone does not grant a bloodline", () => { var j = new Journey(); j.Record("moonfood",3); rules.Apply(j); Require(j.Bloodline == "unformed"); j.Record("magic",3); rules.Apply(j); Require(j.Bloodline == "moonbound"); });
-Check("rebirth resets the life and retains account memories", () => { var legacy = new Legacy { InnateLuck = 2, Memories = ["tide"] }; var j = Journey.Reborn(legacy); Require(j.Legacy == legacy && j.Legacy.Lives == 2 && j.Calling == "unformed" && j.Resources.Count == 0 && j.HpBonus == 2); });
+Check("rebirth resets the life and retains account memories", () => { var legacy = new Legacy { InnateLuck = 2, Memories = ["tide"] }; legacy.Lives++; var j = content.NewJourney(legacy); rules.Apply(j); Require(j.Legacy == legacy && j.Legacy.Lives == 2 && j.Calling == "unformed" && j.Resources.Count == 0 && j.HpBonus == 2); });
 Check("luck respects blessings, curses and bounded probabilities", () => { Require(Fortune.Total([new("blessing",6),new("curse",-9),new("innate",2)]) == -1); Require(Fortune.Total([new("huge",999)]) == 40); Require(Fortune.RareChance(-30) < Fortune.RareChance(40)); });
 Check("recipes need every ingredient", () => { var r = content.Recipes.First(x=>x.Id=="smelt"); var j = new Journey(); j.Resources["ore"]=3; Require(!content.CanCraft(j,r)); j.Resources["wood"]=2; Require(content.CanCraft(j,r)); });
-Check("supplies cannot be consumed below zero", () => { var j=new Journey(); for(var i=0;i<4;i++)Require(j.Consume(Supply.Tonic)); Require(!j.Consume(Supply.Tonic)&&j.Count(Supply.Tonic)==0); });
+Check("shipped adventure content is consistent", () => { var items = ItemCatalog.Load(); var problems = content.Problems(id => items.Get(id) != null); Require(problems.Count == 0, string.Join("; ", problems)); });
+Check("objective progress reads from data", () => { var j = content.NewJourney(); var first = content.Objectives[0]; Require(content.ObjectiveLine(j).Contains($"0/{first.Goal}")); j.Rewards.Add(first.Id); Require(content.CurrentObjective(j) != first); });
+Check("supplies cannot be consumed below zero", () => { var j=content.NewJourney(); for(var i=0;i<4;i++)Require(j.Consume("Tonic")); Require(!j.Consume("Tonic")&&j.Count("Tonic")==0); });
 Check("procedural rooms and exits are connected across 80 layouts", () =>
 {
     foreach (var seed in Enumerable.Range(1,20)) foreach(var depth in new[]{1,3,40,10000})
@@ -184,8 +186,8 @@ try
     Check("blessings and purchases are spatially validated",()=>
     {
         Warp(player,1,22,17);player.Action(AdventureAction.Interact);Until(()=>player.Journey!.LuckSources.Any(s=>s.Name.Contains("Bênção")));
-        var gold=player.Journey!.Gold;Pump(450);player.Action(AdventureAction.BuyTonic);Pump(450);Require(player.Journey.Gold==gold);
-        Warp(player,1,15,22);var tonic=player.Journey.Count(Supply.Tonic);player.Action(AdventureAction.BuyTonic);Until(()=>player.Journey!.Gold==gold-8);Require(player.Journey!.Count(Supply.Tonic)==tonic+1);
+        var gold=player.Journey!.Gold;Pump(450);player.Action(AdventureAction.Buy,"0");Pump(450);Require(player.Journey.Gold==gold);
+        Warp(player,1,15,22);var tonic=player.Journey.Count("Tonic");player.Action(AdventureAction.Buy,"0");Until(()=>player.Journey!.Gold==gold-8);Require(player.Journey!.Count("Tonic")==tonic+1);
     });
     Check("expedition generates a floor and seals descent while enemies live",()=>
     {

@@ -106,6 +106,9 @@ public sealed class MapData
     public int Depth { get; set; }
     public int Seed { get; set; }
 
+    /// <summary>How the place itself sways luck (the "nature" influence); dungeon floors use their depth instead.</summary>
+    public int Luck { get; set; }
+
     public MapMoral Moral { get; set; }
 
     /// <summary>Music file under assets/music, or empty for silence.</summary>
