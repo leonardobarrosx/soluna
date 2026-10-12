@@ -3,6 +3,8 @@ obj/
 .vs/
 .idea/
 *.user
+__pycache__/
+*.pyc
 
 # Art you are allowed to use but not to redistribute, in any game.
 games/*/assets/**/private/

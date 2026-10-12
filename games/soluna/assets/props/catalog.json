@@ -1,0 +1,400 @@
+{
+  "inn": {
+    "Sprite": "atlases/architecture.png",
+    "Source": [
+      19,
+      29,
+      667,
+      513
+    ],
+    "Width": 7,
+    "Height": 5
+  },
+  "smithy": {
+    "Sprite": "atlases/architecture.png",
+    "Source": [
+      717,
+      39,
+      665,
+      496
+    ],
+    "Width": 7,
+    "Height": 5
+  },
+  "herbalist": {
+    "Sprite": "atlases/architecture.png",
+    "Source": [
+      30,
+      588,
+      671,
+      475
+    ],
+    "Width": 7,
+    "Height": 5
+  },
+  "mill": {
+    "Sprite": "atlases/architecture.png",
+    "Source": [
+      701,
+      576,
+      691,
+      492
+    ],
+    "Width": 6,
+    "Height": 5
+  },
+  "oak": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      10,
+      7,
+      385,
+      374
+    ],
+    "Width": 4,
+    "Height": 4
+  },
+  "fir": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      420,
+      9,
+      247,
+      373
+    ],
+    "Width": 3,
+    "Height": 4
+  },
+  "willow": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      722,
+      30,
+      342,
+      352
+    ],
+    "Width": 4,
+    "Height": 4
+  },
+  "dead-tree": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      1096,
+      9,
+      295,
+      371
+    ],
+    "Width": 3,
+    "Height": 4
+  },
+  "boulder": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      7,
+      400,
+      389,
+      264
+    ],
+    "Width": 3,
+    "Height": 2
+  },
+  "ore": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      396,
+      432,
+      292,
+      240
+    ],
+    "Width": 2,
+    "Height": 2
+  },
+  "crystal": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      723,
+      406,
+      309,
+      258
+    ],
+    "Width": 2,
+    "Height": 2
+  },
+  "broken-arch": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      1068,
+      392,
+      325,
+      280
+    ],
+    "Width": 3,
+    "Height": 3
+  },
+  "hedge": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      7,
+      704,
+      389,
+      170
+    ],
+    "Width": 2,
+    "Height": 1
+  },
+  "reeds": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      396,
+      672,
+      297,
+      213
+    ],
+    "Width": 1,
+    "Height": 1
+  },
+  "fern": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      730,
+      678,
+      335,
+      209
+    ],
+    "Width": 1,
+    "Height": 1
+  },
+  "fallen-log": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      1065,
+      690,
+      335,
+      188
+    ],
+    "Width": 2,
+    "Height": 1
+  },
+  "mushrooms": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      23,
+      899,
+      373,
+      209
+    ],
+    "Width": 1,
+    "Height": 1
+  },
+  "herbs": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      396,
+      891,
+      314,
+      221
+    ],
+    "Width": 1,
+    "Height": 1
+  },
+  "woodpile": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      710,
+      898,
+      355,
+      214
+    ],
+    "Width": 2,
+    "Height": 1
+  },
+  "rubble": {
+    "Sprite": "atlases/nature.png",
+    "Source": [
+      1065,
+      892,
+      327,
+      217
+    ],
+    "Width": 2,
+    "Height": 1
+  },
+  "fountain": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      28,
+      16,
+      329,
+      337
+    ],
+    "Width": 3,
+    "Height": 3
+  },
+  "market": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      382,
+      53,
+      322,
+      294
+    ],
+    "Width": 3,
+    "Height": 3
+  },
+  "pier": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      742,
+      21,
+      288,
+      338
+    ],
+    "Width": 3,
+    "Height": 4,
+    "Underfoot": true
+  },
+  "notice": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      1073,
+      32,
+      299,
+      322
+    ],
+    "Width": 2,
+    "Height": 2
+  },
+  "fence-h": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      51,
+      407,
+      323,
+      161
+    ],
+    "Width": 2,
+    "Height": 1
+  },
+  "fence-v": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      460,
+      388,
+      169,
+      182
+    ],
+    "Width": 1,
+    "Height": 2
+  },
+  "wall-h": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      722,
+      402,
+      381,
+      168
+    ],
+    "Width": 2,
+    "Height": 1
+  },
+  "wall-v": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      1208,
+      378,
+      99,
+      198
+    ],
+    "Width": 1,
+    "Height": 2
+  },
+  "lantern": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      119,
+      578,
+      133,
+      283
+    ],
+    "Width": 1,
+    "Height": 2
+  },
+  "benches": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      383,
+      589,
+      314,
+      278
+    ],
+    "Width": 2,
+    "Height": 2
+  },
+  "planter": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      739,
+      632,
+      299,
+      213
+    ],
+    "Width": 2,
+    "Height": 1
+  },
+  "well": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      1120,
+      586,
+      240,
+      277
+    ],
+    "Width": 2,
+    "Height": 2
+  },
+  "stock": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      26,
+      874,
+      326,
+      217
+    ],
+    "Width": 2,
+    "Height": 2
+  },
+  "forge": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      375,
+      867,
+      305,
+      227
+    ],
+    "Width": 2,
+    "Height": 2
+  },
+  "bridge": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      715,
+      895,
+      348,
+      199
+    ],
+    "Width": 5,
+    "Height": 2,
+    "Underfoot": true
+  },
+  "camp": {
+    "Sprite": "atlases/furnishings.png",
+    "Source": [
+      1091,
+      870,
+      288,
+      230
+    ],
+    "Width": 3,
+    "Height": 2
+  }
+}

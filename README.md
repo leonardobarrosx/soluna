@@ -31,8 +31,8 @@ Na morte, nível, experiência, forma, hábitos, inventário e recursos da vida 
 
 ### Mundo, combate e ruínas
 
-- **Vigília de Soluna:** vila com mercador, bancada, santuário e quadro de objetivos.
-- **Bosque dos Esquecidos:** área de exploração, combate, fontes de materiais e acesso às ruínas.
+- **Vigília de Soluna:** praça do santuário, mercado e ferraria, pousada, jardim do herbalista e margem do moinho, com mercador, bancada e quadro de objetivos.
+- **Bosque dos Esquecidos:** trilhas em circuito entre lago com cais, clareira de madeira, afloramento de minério, cristais e pátio das ruínas, com exploração e combate.
 - **Ruínas do Eclipse:** salas e corredores procedurais, relicários, extração de essência e descida liberada após derrotar os inimigos do andar.
 - **Combate:** golpe corpo a corpo, pulso de essência em área, equipamentos, consumíveis e recompensas por derrotar criaturas. O Guardião do Eclipse aparece a cada terceiro andar.
 
@@ -48,7 +48,11 @@ A **sorte é variável**: soma a marca natural da conta, o ciclo dos espíritos,
 
 ### Visual atual
 
-O exemplo usa 16 superfícies e 16 objetos de cenário, com transições entre grama, caminhos e água. Criaturas, habitantes da vila e formas evoluídas têm folhas próprias de animação; a entrada das ruínas também recebeu um novo cenário. O personagem inicial conserva a aparência neutra e o tamanho genérico. As cores e marcas das formas evoluídas acompanham a gameplay.
+O tileset reúne **32 superfícies e 48 objetos pequenos**. Um catálogo de **36 peças de cenário** reutiliza a vegetação e o mobiliário em escala maior e acrescenta quatro construções distintas: pousada, ferraria, herbalista e moinho. Há cercas, muros, bancos, fonte, bancas, ferramentas, estoques, cais, ponte, árvores de quatro tipos, rochas e plantas.
+
+Os dois mapas externos têm composição definida em autoria: caminhos ligam entradas e serviços, construções possuem pátios, árvores formam grupos e os materiais aparecem em clareiras próprias. Transições de grama, musgo, terra, areia e água reduzem as bordas rígidas dos tiles. A revisão atual dos mapas é **10**. Os interiores desses novos prédios ainda são cenário; não há entrada para cômodos jogáveis.
+
+Criaturas, habitantes e formas evoluídas mantêm suas folhas direcionais. O personagem inicial conserva a aparência neutra e o tamanho genérico; as cores e marcas das formas evoluídas acompanham a gameplay.
 
 A direção é fantasia sombria com sprites em pixels, acompanhada de arte de abertura, HUD, minimapa e caderno de vestígios. As referências de atmosfera e apresentação incluem Moonlighter, Crystalshire e RPGs top-down. O inventário de assets e o formato de importação estão nos [créditos e documentação de arte](games/soluna/assets/SOLUNA_ART.md). Para inspecionar todos os quadros dentro do cliente, sem servidor, execute `dotnet run --project src/Soluna.Client -- --art-preview`.
 
@@ -65,6 +69,22 @@ As capturas abaixo são do cliente em execução com a arte atual incluída nest
 **Prévia na engine — animações, formas emergentes, tiles e objetos**
 
 ![Prévia dos sprites direcionais, formas do jogador e tilesets atuais renderizados pela engine](docs/screenshots/art-preview.png)
+
+**Catálogo de arquitetura, vegetação e mobiliário**
+
+![Peças reutilizáveis de cenário renderizadas pelo cliente](docs/screenshots/scenery-preview.png)
+
+As vistas completas da [vila](docs/screenshots/village-overview.png) e do [bosque](docs/screenshots/forest-overview.png) mostram a composição dos mapas. São prévias de autoria renderizadas pelo próprio cliente.
+
+Para inspecionar os mapas e o catálogo sem servidor nem contas:
+
+```bash
+dotnet run --project src/Soluna.Client -- --map-preview 1
+dotnet run --project src/Soluna.Client -- --map-preview 2 --overview
+dotnet run --project src/Soluna.Client -- --scenery-preview
+```
+
+Na prévia de mapas, WASD/setas movem o personagem respeitando colisões; Tab alterna a visão completa e Esc encerra. Esse modo é somente de inspeção, sem combate, interações ou salvamento. Os comandos aceitam `--game` e `--screenshot arquivo.png`.
 
 ## Executar localmente
 
@@ -174,7 +194,7 @@ dotnet run --project tests/Soluna.Tests
 
 O projeto de testes é um executor de console: retorna código diferente de zero se alguma verificação falhar. Cria um mundo temporário e contas descartáveis, abre seu próprio servidor em uma porta UDP local disponível e não depende do servidor de jogo em execução.
 
-A última validação desta implementação terminou com **27 testes aprovados, nenhuma falha e build sem avisos ou erros**. A cobertura inclui evolução por hábitos, combinações de ações, sorte, receitas, profissões, permissões, persistência, combate, cooldown, descida, renascimento e referências dos quadros de arte. A geração foi verificada em **80 combinações de semente e profundidade**. O cliente também foi executado e inspecionado com Xvfb e Mesa.
+A última validação desta implementação terminou com **28 testes aprovados, nenhuma falha e build sem avisos ou erros**. A cobertura inclui evolução por hábitos, combinações de ações, sorte, receitas, profissões, permissões, persistência, combate, cooldown, descida, renascimento, recortes de arte, transferência dos objetos de cenário e acesso aos serviços e portais. A geração foi verificada em **80 combinações de semente e profundidade**. O cliente também foi executado e inspecionado com Xvfb e Mesa.
 
 Para verificar o cliente sem monitor no Linux, com o servidor já iniciado e Xvfb instalado:
 

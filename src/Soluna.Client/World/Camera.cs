@@ -5,11 +5,12 @@ namespace Soluna.Client.World;
 internal sealed class Camera
 {
     public const float MinZoom = 1, MaxZoom = 4;
+    public const float DefaultZoom = 1.25f;
 
     /// <summary>Top-left of the view in world pixels.</summary>
     public Vector2 Position { get; private set; }
 
-    public float Zoom { get; set; } = 1.5f;
+    public float Zoom { get; set; } = DefaultZoom;
 
     public Point Viewport { get; set; }
 

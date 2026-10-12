@@ -13,6 +13,7 @@ A engine continua dividida em `Soluna.Shared` (formatos, protocolo e regras), `S
 | `data/maps/*.json` | Mapas, colisões, portais, NPCs, pontos de interação e objetos visuais |
 | `assets/characters/*` | Sprites e conjuntos de aparência |
 | `assets/props/*` | Objetos de cenário com ordenação de profundidade |
+| `assets/props/catalog.json` | Recortes e dimensões das peças de arquitetura, vegetação e mobiliário do exemplo |
 
 Os editores F1 e F2 existentes continuam disponíveis para mapas, itens e NPCs. As novas receitas, combinações de hábitos e pontos de atividade são configurados em JSON nesta versão. O conteúdo do exemplo pode servir de modelo para outro jogo:
 
@@ -57,15 +58,21 @@ As criaturas de um andar não reaparecem durante a expedição. A descida abre d
 
 ## Arte
 
-O jogo usa páginas de arte em `assets/atlases`, importadas por arquivos `*.png.layout.json`. Cada layout define `Columns`, `Rows`, `CellWidth`, `CellHeight` e `Patches`. Um patch referencia uma página por `File` (relativo a `assets/`), sua grade por `Columns`/`Rows` e os índices `Source`/`Target`. `Rects` permite especificar recortes `[x, y, largura, altura]` revisados; `Fit` e `Inset` preservam proporções e alinham os pés dentro dos quadros. A imagem PNG que acompanha o layout serve de fallback.
+O jogo usa páginas de arte em `assets/atlases`, importadas por arquivos `*.png.layout.json`. Cada layout define `Columns`, `Rows`, `CellWidth`, `CellHeight` e `Patches`. Um patch referencia uma página por `File` (relativo a `assets/`), sua grade por `Columns`/`Rows` e os índices `Source`/`Target`. `Rects` permite especificar recortes `[x, y, largura, altura]` revisados; `Fit` e `Inset` preservam proporções e alinham os pés dentro dos quadros. `Average` reduz ruído dos pisos ao converter a imagem para resolução nativa. A imagem PNG que acompanha o layout serve de fallback; expandir o atlas conserva as células anteriores em suas posições.
 
 A importação ocorre em memória e entrega aos renderizadores e editores as dimensões nativas: tiles de 32 pixels e folhas direcionais de três colunas por quatro linhas. O chefe do exemplo usa quadros de 48 pixels. O campo opcional `Terrain`, com `GrassTile`, `Grass`, `BlendInto` e `Water`, habilita as transições de terreno na camada de chão. Novas páginas devem ficar em `assets/atlases` para participar da invalidação dos caches ao atualizar assets.
+
+`Terrain.Blends` permite uma lista de transições entre materiais: `Tile` indica a textura usada na borda, `From` os vizinhos que a produzem, `Into` os tiles que a recebem e `Width` a largura em pixels (1–12). A engine aplica as regras em ordem, mantendo o formato anterior quando a lista está vazia. O exemplo usa bordas de musgo, grama, areia e água rasa. As regras visuais não alteram colisões.
+
+`MapProp.Source` é um recorte opcional `[x, y, largura, altura]` na imagem indicada por `Sprite`. `Width` e `Height` continuam em tiles. `Underfoot` coloca uma peça abaixo dos atores; os demais objetos seguem a ordenação pela base. Mapas antigos sem esses campos continuam usando a imagem inteira e a ordenação anterior. `Attributes` define as colisões separadamente.
+
+O catálogo de cenário do exemplo reúne 36 peças maiores; `tools/soluna_maps.py` usa seus recortes para montar os dois mapas externos, revisão 10. A autoria dessas peças grandes ainda ocorre nos dados, enquanto F1 permite pintar os tiles pequenos do atlas ampliado. O novo zoom inicial de 1,25 permite ver mais da composição; os controles de zoom permanecem disponíveis.
 
 `characters/echoes/forms.json` associa cada silhueta à sua folha de animação. O compositor aplica as cores e marcas recebidas do servidor, usando os desenhos em código como fallback quando não há uma folha de autoria.
 
 `tools/configure_soluna_art.py` escreve os metadados da arte atual, sem alterar os PNGs. `tools/build_soluna_art.py` reproduz apenas os sprites de fallback com Pillow. `tools/build_soluna_world.py` recria o conteúdo do exemplo; `--maps-only` restringe a recriação aos dois mapas públicos. Ambos os modos sobrescrevem os respectivos arquivos de autoria. Veja [Arte de Soluna](../games/soluna/assets/SOLUNA_ART.md) para o inventário e os créditos.
 
-O cliente aceita `--art-preview` para conferir tiles, objetos, formas e todas as direções dos NPCs sem conectar ao servidor. A opção pode ser combinada com `--screenshot`. A paleta do editor F1 reorganiza as colunas do atlas para permitir selecionar também os tiles que excedem a largura do painel.
+O cliente aceita `--art-preview` para conferir tiles, objetos, formas e todas as direções dos NPCs sem conectar ao servidor. `--scenery-preview` mostra o catálogo de peças grandes; `--map-preview <id>` mostra um mapa local, com `--overview` para enquadrá-lo inteiro. Na prévia de mapas, WASD/setas respeitam as colisões e Tab alterna o enquadramento. Não há interações, combate nem gravação nesse modo. Todas as prévias aceitam `--game` e `--screenshot`. A paleta do editor F1 reorganiza as colunas do atlas para permitir selecionar também os tiles que excedem a largura do painel.
 
 ## Validação
 

@@ -5,9 +5,11 @@ using Soluna.Shared;
 //   [--user name --password secret [--play]]   log in on start, creating the account if needed
 //   [--game soluna]   which game under games/ to load art from
 //   [--name Leo] [--walk] [--editor] [--inventory] [--creation] [--import file.png] [--screenshot shot.png]   for testing
+//   --art-preview | --scenery-preview | --map-preview <id> [--overview]   local read-only art review
 var host = "127.0.0.1";
 var port = Constants.DefaultPort;
 string? name = null, user = null, password = null, screenshot = null, editorMode = null, import = null;
+int? mapPreview = null;
 var walk = args.Contains("--walk");
 var play = args.Contains("--play") || walk;
 var editor = args.Contains("--editor") || args.Contains("--editor-mode");
@@ -28,6 +30,7 @@ for (var i = 0; i < args.Length - 1; i++)
         case "--game": DataPaths.UseGame(args[++i]); break;
         case "--editor-mode": editorMode = args[++i]; break;
         case "--import": import = args[++i]; break;
+        case "--map-preview": mapPreview = int.Parse(args[++i]); break;
     }
 }
 
@@ -39,5 +42,5 @@ if (walk && user == null && name != null)
 }
 
 using var game = new SolunaGame(new ClientOptions(
-    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory, creation, gameEditorTab, editorMode, import, args.Contains("--journal"), args.Contains("--art-preview")));
+    host, port, name ?? user ?? Environment.UserName, user, password, play, screenshot, walk, editor, inventory, creation, gameEditorTab, editorMode, import, args.Contains("--journal"), args.Contains("--art-preview") || args.Contains("--scenery-preview"), mapPreview, args.Contains("--overview"), args.Contains("--scenery-preview")));
 game.Run();

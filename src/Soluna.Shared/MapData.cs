@@ -81,6 +81,10 @@ public sealed class MapLinks
 public sealed class MapProp
 {
     public string Sprite { get; set; } = "";
+    /// <summary>Optional [x, y, width, height] crop in the source PNG. Empty uses the entire image.</summary>
+    public int[] Source { get; set; } = [];
+    /// <summary>Decks and other floor furniture draw below characters, regardless of their footprint.</summary>
+    public bool Underfoot { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
     public int Width { get; set; } = 2;

@@ -5,11 +5,11 @@ using Soluna.Shared;
 
 namespace Soluna.Client.World;
 
-/// <summary>Data-authored grass edges with deterministic pixel contours. Collision and tile IDs remain unchanged.</summary>
+/// <summary>Data-authored material edges with deterministic pixel contours. Collision and tile IDs remain unchanged.</summary>
 internal sealed class TerrainTransitions(Textures textures)
 {
     private const int S = Constants.TileSize;
-    private readonly Dictionary<(Texture2D atlas, int index, int mask), Texture2D> _edges = [];
+    private readonly Dictionary<(Texture2D atlas, int index, int source, int mask, int width), Texture2D> _edges = [];
     private readonly Dictionary<Texture2D, Color[]> _pixels = [];
 
     public void Draw(SpriteBatch batch, MapData map, int tile, int x, int y)
@@ -18,18 +18,29 @@ internal sealed class TerrainTransitions(Textures textures)
         if (set < 0 || set >= map.Tilesets.Count) return;
         var spec = textures.Terrain(map.Tilesets[set]);
         var index = TileRef.Index(tile);
-        if (spec == null || !spec.BlendInto.Contains(index)) return;
+        if (spec == null) return;
+        if (spec.Blends.Count > 0)
+        {
+            foreach (var rule in spec.Blends)
+                if (rule.Into.Contains(index)) DrawEdge(batch, map, set, index, x, y, spec, rule);
+        }
+        else if (spec.BlendInto.Contains(index))
+            DrawEdge(batch, map, set, index, x, y, spec, new TerrainBlend { Tile = spec.GrassTile, From = spec.Grass });
+    }
+
+    private void DrawEdge(SpriteBatch batch, MapData map, int set, int index, int x, int y, TerrainEdges spec, TerrainBlend rule)
+    {
         bool Grass(int dx, int dy)
         {
             if (!map.InBounds(x + dx, y + dy)) return false;
             var neighbor = map.GetTile(MapLayer.Ground, x + dx, y + dy);
-            return neighbor != TileRef.Empty && TileRef.Tileset(neighbor) == set && spec.Grass.Contains(TileRef.Index(neighbor));
+            return neighbor != TileRef.Empty && TileRef.Tileset(neighbor) == set && rule.From.Contains(TileRef.Index(neighbor));
         }
         var mask = (Grass(0, -1) ? 1 : 0) | (Grass(1, 0) ? 2 : 0) | (Grass(0, 1) ? 4 : 0) | (Grass(-1, 0) ? 8 : 0)
             | (Grass(-1, -1) ? 16 : 0) | (Grass(1, -1) ? 32 : 0) | (Grass(1, 1) ? 64 : 0) | (Grass(-1, 1) ? 128 : 0);
         if (mask == 0) return;
         var atlas = textures.Tileset(map.Tilesets[set]);
-        var key = (atlas, index, mask);
+        var key = (atlas, index, rule.Tile, mask, rule.Width);
         if (!_edges.TryGetValue(key, out var edge))
         {
             // Texture hot-reload invalidates its generated contours too.
@@ -38,7 +49,7 @@ internal sealed class TerrainTransitions(Textures textures)
             if (!_pixels.TryGetValue(atlas, out var source))
             { source = new Color[atlas.Width * atlas.Height]; atlas.GetData(source); _pixels[atlas] = source; }
             var cols = Math.Max(1, atlas.Width / S);
-            var ox = spec.GrassTile % cols * S; var oy = spec.GrassTile / cols * S;
+            var ox = rule.Tile % cols * S; var oy = rule.Tile / cols * S;
             if (ox + S > atlas.Width || oy + S > atlas.Height) return;
             var pixels = new Color[S * S];
             var water = spec.Water.Contains(index);
@@ -54,13 +65,18 @@ internal sealed class TerrainTransitions(Textures textures)
                 if ((mask & 32) != 0) distance = Math.Min(distance, 31 - px + py);
                 if ((mask & 64) != 0) distance = Math.Min(distance, 62 - px - py);
                 if ((mask & 128) != 0) distance = Math.Min(distance, px + 31 - py);
-                var contour = 2 + ((px * 17 + py * 7 + px / 3 * 11) % 4);
+                // Two bordering neighbors describe a convex shoreline/path corner.
+                // Round the whole corner instead of leaving a tile-sized staircase.
+                if ((mask & 9) == 9) distance = Math.Min(distance, S - (int)MathF.Sqrt((31 - px) * (31 - px) + (31 - py) * (31 - py)));
+                if ((mask & 3) == 3) distance = Math.Min(distance, S - (int)MathF.Sqrt(px * px + (31 - py) * (31 - py)));
+                if ((mask & 6) == 6) distance = Math.Min(distance, S - (int)MathF.Sqrt(px * px + py * py));
+                if ((mask & 12) == 12) distance = Math.Min(distance, S - (int)MathF.Sqrt((31 - px) * (31 - px) + py * py));
+                var contour = rule.Width - 1 + ((px / 4 * 7 + py / 4 * 3) % 3);
                 if (distance <= contour)
                     pixels[py * S + px] = source[(oy + py) * atlas.Width + ox + px];
-                else if (distance == contour + 1)
-                    pixels[py * S + px] = water ? new Color(92, 111, 90) : new Color(45, 54, 41, 255);
-                else if (water && distance == contour + 2)
-                    pixels[py * S + px] = new Color(42, 72, 73);
+                else if (distance <= contour + 2)
+                    pixels[py * S + px] = water ? new Color(72, 99, 91, 170)
+                        : source[(oy + py) * atlas.Width + ox + px] * .45f;
             }
             edge = new Texture2D(atlas.GraphicsDevice, S, S); edge.SetData(pixels); _edges[key] = edge;
         }

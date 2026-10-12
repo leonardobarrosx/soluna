@@ -37,6 +37,8 @@ def patch(page, cols, rows, source, target=None, rects=None, inset=2):
          'Target': list(range(len(source))) if target is None else target}
     if rects is not None:
         p.update(Rects=[rects[i] for i in source], Fit=True, Inset=inset)
+    if page in ('atlases/terrain.png', 'atlases/surfaces.png'):
+        p['Average'] = True
     return p
 
 
@@ -77,10 +79,49 @@ sheet('merchant', 'atlases/villagers.png', [0, 1, 2, 6, 7, 6, 12, 13, 12, 18, 19
 sheet('keeper', 'atlases/villagers.png', [3, 4, 5, 9, 10, 9, 15, 16, 15, 21, 22, 23], villagers, rows=4)
 
 objects = rectangles('atlases/objects.png', [0, 315, 635, 950, 1254], [0, 333, 636, 918, 1254])
+nature = rectangles('atlases/nature.png', [0, 396, 710, 1065, 1402], [0, 389, 672, 891, 1122])
+furnishings = rectangles('atlases/furnishings.png', [0, 375, 713, 1067, 1402], [0, 371, 577, 867, 1122])
+# The horizontal wall's right pier extends beyond the nominal column. Keep it
+# with its wall and exclude it from the neighboring vertical-wall crop.
+furnishings[6:8] = rectangles('atlases/furnishings.png', [713, 1110, 1402], [371, 577])
+architecture = rectangles('atlases/architecture.png', [0, 701, 1402], [0, 561, 1122])
 write(ROOT / 'tilesets/soluna/atlas.png.layout.json', {
-    'Columns': 16, 'Rows': 8, 'CellWidth': 32, 'CellHeight': 32,
+    'Columns': 16, 'Rows': 11, 'CellWidth': 32, 'CellHeight': 32,
     'Patches': [patch('atlases/terrain.png', 4, 4, list(range(16))),
-                patch('atlases/objects.png', 4, 4, list(range(16)), list(range(96, 112)), objects, inset=1)],
-    'Terrain': {'GrassTile': 0, 'Grass': [0, 1, 8, 9, 10, 11, 12],
-                'BlendInto': [2, 3, 4, 13, 14], 'Water': [4]}})
-print('Import metadata written: 16 surfaces, 16 objects, 11 character sheets; source PNGs unchanged.')
+                patch('atlases/objects.png', 4, 4, list(range(16)), list(range(96, 112)), objects, inset=1),
+                patch('atlases/surfaces.png', 4, 4, list(range(16)), list(range(128, 144))),
+                patch('atlases/nature.png', 4, 4, list(range(16)), list(range(144, 160)), nature, inset=1),
+                patch('atlases/furnishings.png', 4, 4, list(range(16)), list(range(160, 176)), furnishings, inset=1)],
+    'Terrain': {'GrassTile': 128, 'Grass': [0, 1, 8, 9, 10, 11, 12, 128, 129, 140],
+                'BlendInto': [2, 3, 4, 13, 14, 130, 131, 132, 133, 134, 135, 136, 137, 141, 142, 143],
+                'Water': [4, 132, 133],
+                'Blends': [
+                    {'Tile': 129, 'From': [129, 140], 'Into': [128], 'Width': 9},
+                    {'Tile': 128, 'From': [0, 1, 8, 9, 10, 11, 12, 128, 129, 140],
+                     'Into': [2, 3, 4, 13, 14, 130, 131, 134, 135, 136, 137, 141, 142, 143], 'Width': 6},
+                    {'Tile': 143, 'From': [143], 'Into': [132, 133], 'Width': 7},
+                    {'Tile': 133, 'From': [133], 'Into': [132], 'Width': 4}]}})
+
+# Larger scenery reuses the same original pages through MapProp.Source, avoiding
+# duplicate PNGs and keeping each silhouette's intended world scale in a catalog.
+catalog = {}
+groups = [
+    ('atlases/architecture.png', architecture, [
+        ('inn', 7, 5), ('smithy', 7, 5), ('herbalist', 7, 5), ('mill', 6, 5)]),
+    ('atlases/nature.png', nature, [
+        ('oak', 4, 4), ('fir', 3, 4), ('willow', 4, 4), ('dead-tree', 3, 4),
+        ('boulder', 3, 2), ('ore', 2, 2), ('crystal', 2, 2), ('broken-arch', 3, 3),
+        ('hedge', 2, 1), ('reeds', 1, 1), ('fern', 1, 1), ('fallen-log', 2, 1),
+        ('mushrooms', 1, 1), ('herbs', 1, 1), ('woodpile', 2, 1), ('rubble', 2, 1)]),
+    ('atlases/furnishings.png', furnishings, [
+        ('fountain', 3, 3), ('market', 3, 3), ('pier', 3, 4), ('notice', 2, 2),
+        ('fence-h', 2, 1), ('fence-v', 1, 2), ('wall-h', 2, 1), ('wall-v', 1, 2),
+        ('lantern', 1, 2), ('benches', 2, 2), ('planter', 2, 1), ('well', 2, 2),
+        ('stock', 2, 2), ('forge', 2, 2), ('bridge', 5, 2), ('camp', 3, 2)])]
+for page, bounds, entries in groups:
+    for rect, (name, w, h) in zip(bounds, entries):
+        catalog[name] = {'Sprite': page, 'Source': rect, 'Width': w, 'Height': h}
+        if name in ('pier', 'bridge'):
+            catalog[name]['Underfoot'] = True
+write(ROOT / 'props/catalog.json', catalog)
+print('Import metadata: 32 surfaces, 48 small objects, 36 reusable scenery pieces, 11 character sheets; PNGs unchanged.')

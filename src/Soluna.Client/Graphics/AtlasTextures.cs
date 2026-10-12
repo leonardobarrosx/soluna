@@ -5,7 +5,7 @@ using Soluna.Shared;
 namespace Soluna.Client.Graphics;
 
 /// <summary>Imports art pages into engine-sized texture cells without rewriting their source files.
-/// Integer cell boundaries and nearest sampling prevent bleeding between poses and tiles.</summary>
+/// Each cell is sampled independently, using nearest pixels or optional area reduction.</summary>
 internal static class AtlasTextures
 {
     public static Texture2D Load(GraphicsDevice device, string path)
@@ -22,8 +22,10 @@ internal static class AtlasTextures
             var output = new Color[width * height];
             var pixels = new Color[original.Width * original.Height];
             original.GetData(pixels);
-            Sample(pixels, original.Width, new Rectangle(0, 0, original.Width, original.Height),
-                output, width, new Rectangle(0, 0, width, height));
+            // An expanded atlas keeps every existing native tile at its original index.
+            // Stretching the fallback to the new height would move and distort legacy cells.
+            var copy = new Rectangle(0, 0, Math.Min(original.Width, width), Math.Min(original.Height, height));
+            Sample(pixels, original.Width, copy, output, width, copy);
             foreach (var patch in layout.Patches)
             {
                 var file = AssetFiles.Resolve(patch.File);
@@ -57,7 +59,7 @@ internal static class AtlasTextures
                         var h = Math.Max(1, (int)MathF.Round(from.Height * scale));
                         dest = new Rectangle(cell.X + (cell.Width - w) / 2, cell.Bottom - patch.Inset - h, w, h);
                     }
-                    Sample(data, page.Width, from, output, width, dest);
+                    Sample(data, page.Width, from, output, width, dest, patch.Average);
                 }
             }
             var result = new Texture2D(device, width, height);
@@ -66,11 +68,30 @@ internal static class AtlasTextures
         }
     }
 
-    private static void Sample(Color[] source, int sourceWidth, Rectangle from, Color[] target, int targetWidth, Rectangle to)
+    private static void Sample(Color[] source, int sourceWidth, Rectangle from, Color[] target, int targetWidth, Rectangle to, bool average = false)
     {
         for (var y = 0; y < to.Height; y++)
         for (var x = 0; x < to.Width; x++)
         {
+            if (average && from.Width > to.Width && from.Height > to.Height)
+            {
+                // Keep the final tile pixel-sized while avoiding high-frequency aliasing.
+                // Weight color by alpha so transparent gutters do not darken the silhouette.
+                var left = from.X + x * from.Width / to.Width;
+                var right = from.X + (x + 1) * from.Width / to.Width;
+                var top = from.Y + y * from.Height / to.Height;
+                var bottom = from.Y + (y + 1) * from.Height / to.Height;
+                long r = 0, g = 0, b = 0, a = 0;
+                for (var py = top; py < bottom; py++)
+                for (var px = left; px < right; px++)
+                {
+                    var c = source[py * sourceWidth + px];
+                    r += c.R * c.A; g += c.G * c.A; b += c.B * c.A; a += c.A;
+                }
+                target[(to.Y + y) * targetWidth + to.X + x] = a == 0 ? Color.Transparent
+                    : new Color((byte)(r / a), (byte)(g / a), (byte)(b / a), (byte)(a / ((right - left) * (bottom - top))));
+                continue;
+            }
             var sx = from.X + Math.Min(from.Width - 1, (2 * x + 1) * from.Width / (2 * to.Width));
             var sy = from.Y + Math.Min(from.Height - 1, (2 * y + 1) * from.Height / (2 * to.Height));
             target[(to.Y + y) * targetWidth + to.X + x] = source[sy * sourceWidth + sx];

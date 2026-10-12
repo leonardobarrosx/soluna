@@ -69,6 +69,12 @@ Check("shipped world landmarks and portals are reachable", () =>
         var seen=new HashSet<(int,int)>();var q=new Queue<(int,int)>();q.Enqueue(m.Spawn);
         while(q.TryDequeue(out var p)){if(!m.IsWalkable(p.Item1,p.Item2)||!seen.Add(p))continue;foreach(var d in Enum.GetValues<Direction>().Select(d=>d.Delta()))q.Enqueue((p.Item1+d.dx,p.Item2+d.dy));}
         Require(m.Landmarks.All(l=>seen.Contains((l.X,l.Y))),$"Map {id}: disconnected service");Require(m.Warps.All(w=>seen.Contains((w.X,w.Y))),$"Map {id}: disconnected portal");
+        Require(m.Npcs.All(n=>seen.Contains((n.X,n.Y))), $"Map {id}: disconnected encounter");
+        foreach(var warp in m.Warps)
+        {
+            var target=MapData.FromBytes(File.ReadAllBytes(Path.Combine(DataPaths.Data,"maps",$"{warp.Map}.json")));
+            Require(target.IsWalkable(warp.ToX,warp.ToY), $"Map {id}: portal arrives inside scenery");
+        }
     }
 });
 Check("username traversal is rejected",()=>Require(AccountStore.CheckUsername("../../other")!=null));
@@ -96,6 +102,38 @@ Check("authored art pages cover native frames with valid source rectangles", () 
     }
     var blank = TextureLayout.Read(Path.Combine(DataPaths.Assets, "characters", "echoes", "blank.png"))!;
     Require(blank.CellWidth == 32 && blank.CellHeight == 32, "The unformed character must retain its generic size");
+});
+
+Check("authored scenery survives map serialization and uses valid art crops", () =>
+{
+    foreach (var id in new[] { 1, 2 })
+    {
+        var original = MapData.FromBytes(File.ReadAllBytes(Path.Combine(DataPaths.Data, "maps", $"{id}.json")));
+        var map = MapData.FromBytes(original.ToBytes());
+        Require(map.Props.Count == original.Props.Count && map.Props.Any(p => p.Underfoot), "Scenery was lost in map transfer");
+        for (var i = 0; i < map.Props.Count; i++)
+        {
+            var p = map.Props[i];
+            Require(p.Source.SequenceEqual(original.Props[i].Source) && p.Underfoot == original.Props[i].Underfoot);
+            Require(p.Width > 0 && p.Height > 0 && p.X >= 0 && p.Y >= 0 && p.X + p.Width <= map.Width && p.Y + p.Height <= map.Height,
+                "Scenery extends beyond the world");
+            var file = AssetFiles.Resolve(p.Sprite);
+            Require(file != null && File.Exists(file), $"Missing scenery: {p.Sprite}");
+            var size = AssetFiles.PngSize(File.ReadAllBytes(file!));
+            Require(size.HasValue);
+            if (p.Source.Length != 0)
+                Require(p.Source is [var x, var y, var w, var h] && x >= 0 && y >= 0 && w > 0 && h > 0
+                    && x + w <= size!.Value.w && y + h <= size.Value.h, "Scenery crop crosses its art page");
+        }
+        foreach (var tile in map.Layers.SelectMany(layer => layer).Where(tile => tile != TileRef.Empty))
+        {
+            Require(TileRef.Tileset(tile) < map.Tilesets.Count);
+            var layout = TextureLayout.Read(Path.Combine(DataPaths.Assets, "tilesets", map.Tilesets[TileRef.Tileset(tile)]))!;
+            Require(TileRef.Index(tile) < layout.Columns * layout.Rows, "Map references a tile outside the expanded atlas");
+        }
+    }
+    var legacy = MapData.FromBytes("{\"Props\":[{\"Sprite\":\"props/cottage.png\",\"X\":1,\"Y\":2,\"Width\":5,\"Height\":4}]}"u8);
+    Require(legacy.Props[0].Source.Length == 0 && !legacy.Props[0].Underfoot, "Older maps changed their prop rendering defaults");
 });
 
 // These fixtures only seed local test accounts; every action below goes through real UDP packets.
@@ -180,6 +218,9 @@ try
     });
     Check("death resets form and possessions but preserves account memories",()=>
     {
+        // Establish a nearby encounter after the long profession/combat checks.
+        // Ambient enemies may have wandered away or been drawn into another clearing.
+        Warp(admin,2,24,32);admin.Chat("/npc 10");Pump(80);Warp(admin,1,22,22);
         var victim=new Probe("doomed","Doomed",password,port);clients.Add(victim);
         Until(()=>victim.Journey?.Legacy.Lives==2,12000);
         Require(victim.Map==1&&victim.Journey!.Calling=="unformed"&&victim.Journey.Gold==20&&victim.Journey.Resources.Count==0&&victim.Journey.Legacy.Memories.Contains("tide"));

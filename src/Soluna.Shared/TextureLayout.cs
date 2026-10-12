@@ -31,6 +31,9 @@ public sealed class TextureLayout
         if (Terrain is { } terrain && new[] { terrain.GrassTile }.Concat(terrain.Grass).Concat(terrain.BlendInto).Concat(terrain.Water)
             .Any(i => i < 0 || i >= Columns * Rows))
             throw new InvalidDataException("Terrain transition references a tile outside its atlas.");
+        if (Terrain?.Blends.Any(b => b.Width is < 1 or > 12 || new[] { b.Tile }.Concat(b.From).Concat(b.Into)
+            .Any(i => i < 0 || i >= Columns * Rows)) == true)
+            throw new InvalidDataException("Terrain blend references an invalid tile or edge width.");
         foreach (var patch in Patches)
         {
             if (string.IsNullOrWhiteSpace(patch.File) || patch.Columns is < 1 or > 64 || patch.Rows is < 1 or > 64
@@ -54,6 +57,16 @@ public sealed class TerrainEdges
     public int[] Grass { get; set; } = [];
     public int[] BlendInto { get; set; } = [];
     public int[] Water { get; set; } = [];
+    public List<TerrainBlend> Blends { get; set; } = [];
+}
+
+/// <summary>A material painted over neighboring material edges. Rules compose in listed order.</summary>
+public sealed class TerrainBlend
+{
+    public int Tile { get; set; }
+    public int[] From { get; set; } = [];
+    public int[] Into { get; set; } = [];
+    public int Width { get; set; } = 5;
 }
 
 public sealed class AtlasPatch
@@ -67,4 +80,6 @@ public sealed class AtlasPatch
     public int[][] Rects { get; set; } = [];
     public bool Fit { get; set; }
     public int Inset { get; set; }
+    /// <summary>Average source pixels when reducing detailed ground art to native cells.</summary>
+    public bool Average { get; set; }
 }
