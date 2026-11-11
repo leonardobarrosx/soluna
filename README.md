@@ -4,6 +4,14 @@ Soluna é uma **engine 2D de RPG online**, em C# / .NET 10, com cliente MonoGame
 
 **Estado atual: base jogável em desenvolvimento.** Já é possível entrar com vários clientes, explorar, combater, praticar ofícios, fabricar equipamentos, transformar o personagem e renascer. O projeto ainda precisa de trabalho para operar como um MMORPG público em grande escala.
 
+## Origem
+
+Entre 2007 e 2012 comecei a me interessar por programação por causa dos jogos online feitos com a **Eclipse Origins**, a **Crystalshire** e o **RPG Maker**. Abrir os editores, mexer nos mapas e entender como cliente e servidor conversavam foi o que me levou a programar.
+
+O Soluna volta a esse ponto de partida. Ele foi refeito tomando como referência a engine **Crystalshire**, escrita em VB6 por **Robin Perris**: a mesma ideia de um RPG online 2D com editores dentro do jogo, agora reescrita do zero em C# e corrigindo os problemas que aquela base tinha. O servidor é autoritativo e valida cada ação, as senhas são guardadas com hash e todo o conteúdo do jogo fica em dados, separado do código.
+
+O projeto é uma homenagem a Robin Perris.
+
 ## O que a engine já oferece
 
 | Área | Implementação atual |
@@ -66,6 +74,12 @@ As capturas abaixo são do cliente em execução com a arte atual incluída nest
 **Bosque dos Esquecidos — exploração, criaturas e pontos de coleta**
 
 ![Bosque com os novos pisos, vegetação, criaturas e pontos de atividade](docs/screenshots/forest.png)
+
+**Editor de mapas (F1) — tiles, cenário e atributos editados com o jogo rodando**
+
+![Editor de mapas aberto na vila, com a paleta de tiles do tileset atual](docs/screenshots/map-editor.png)
+
+As outras abas do editor colocam [peças de cenário](docs/screenshots/map-editor-scenery.png) com colisão da base e marcam [atributos e bloqueios](docs/screenshots/map-editor-attributes.png). As mudanças são validadas pelo servidor e chegam a todos os jogadores na hora.
 
 **Prévia na engine — animações, formas emergentes, tiles e objetos**
 
@@ -225,6 +239,6 @@ Este README descreve o estado atual. [Engine base](docs/ENGINE_BASE.md) preserva
 
 ## Licença e créditos
 
-Código sob [licença MIT](LICENSE). A arquitetura foi inspirada em [Crystalshire](https://github.com/RobinPerris/Crystalshire), de Robin Perris. O cliente e a rede usam [MonoGame](https://monogame.net), [LiteNetLib](https://github.com/RevenantX/LiteNetLib) e [FontStashSharp](https://github.com/FontStashSharp/FontStashSharp).
+Código sob [licença MIT](LICENSE). O projeto foi refeito tomando como referência a engine [Crystalshire](https://github.com/RobinPerris/Crystalshire), de Robin Perris, e é uma homenagem a ele. O cliente e a rede usam [MonoGame](https://monogame.net), [LiteNetLib](https://github.com/RevenantX/LiteNetLib) e [FontStashSharp](https://github.com/FontStashSharp/FontStashSharp).
 
 A arte nova e sua origem estão nos [créditos de Soluna](games/soluna/assets/SOLUNA_ART.md). Os conjuntos anteriores LPC e BoundWorlds/chibi mantêm seus créditos e licenças próprios; veja também a [documentação dos assets](games/soluna/assets/README.md).
